@@ -77,19 +77,19 @@ The Fabric Adoption Framework also provides structured guidance for adopting spe
 Explore more in-depth documentation and tools to support your Fabric adoption:
 
 - [Microsoft Fabric documentation](https://learn.microsoft.com/en-us/fabric/?wt.mc_id=AZ-MVP-5003447)
-- [Microsoft Fabric roadmap](https://aka.ms/fabric/roadmap?wt.mc_id=AZ-MVP-5003447)
-- [Microsoft Fabric architecture guidance](https://learn.microsoft.com/en-us/fabric/architecture/fabric-architecture-overview?wt.mc_id=AZ-MVP-5003447)
-- [Microsoft Fabric security documentation](https://learn.microsoft.com/en-us/fabric/security/security-overview?wt.mc_id=AZ-MVP-5003447)
-- [Microsoft Purview governance overview](https://learn.microsoft.com/en-us/purview/fabric-governance-overview?wt.mc_id=AZ-MVP-5003447)
-- [Cloud Adoption Framework for Fabric](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/scenarios/fabric/?wt.mc_id=AZ-MVP-5003447)
+- [Microsoft Fabric roadmap](hhttps://roadmap.fabric.microsoft.com?wt.mc_id=AZ-MVP-5003447)
+- [Microsoft Fabric architecture guidance](https://learn.microsoft.com/en-us/azure/architecture/analytics/architecture/fabric-deployment-patterns?wt.mc_id=AZ-MVP-5003447)
+- [Microsoft Fabric security documentation](https://learn.microsoft.com/en-us/fabric/security/?wt.mc_id=AZ-MVP-5003447)
+- [Microsoft Purview governance overview](https://learn.microsoft.com/en-us/purview/data-governance-overview?wt.mc_id=AZ-MVP-5003447)
+- [Cloud Adoption Framework for Azure](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/scenarios/fabric/?wt.mc_id=AZ-MVP-5003447)
 
 ## Training
 
 Build your team's Fabric skills with Microsoft Learn and community content:
 
-- [Microsoft Learn: Microsoft Fabric learning path](https://learn.microsoft.com/en-us/training/paths/get-started-microsoft-fabric/?wt.mc_id=AZ-MVP-5003447)
+- [Microsoft Learn: Microsoft Fabric learning path](https://learn.microsoft.com/en-us/training/paths/get-started-fabric/?wt.mc_id=AZ-MVP-5003447)
 - [Microsoft Fabric YouTube playlist](https://www.youtube.com/playlist?list=PL1N57mwBHtN0JFoOaMp8ZzS4rjQXzvDGs)
-- [Data Weekender Sessions on Microsoft Fabric](https://www.dataweekender.com/)
-- [Microsoft Fabric blog](https://techcommunity.microsoft.com/t5/microsoft-fabric/bg-p/MicrosoftFabric)
+- [Microsoft Fabric Events](https://www.the-trusted-advisor.com/events/)
+- [Microsoft Fabric blog](https://blog.fabric.microsoft.com/en-US/blog/)
 
 
