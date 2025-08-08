@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "website/package.json", "use": "@vercel/static-build" }
+  ],
+  "framework": null,
+  "outputDirectory": "build",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build"
+}
