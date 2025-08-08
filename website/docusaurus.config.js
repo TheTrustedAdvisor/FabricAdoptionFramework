@@ -79,7 +79,7 @@ const config = {
         title: 'Fabric Adoption Framework',
         logo: {
           alt: 'My Site Logo',
-          src: 'img/logo.svg',
+          src: 'img/fabric-adoption-framework.png',
         },
         items: [
           {
