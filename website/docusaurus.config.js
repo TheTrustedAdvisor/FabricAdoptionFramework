@@ -61,8 +61,13 @@ const config = {
   ],
 
   plugins: [
-    //'@docusaurus/plugin-sitemap',
-    // '@docusaurus/plugin-google-gtag',
+    [
+      '@docusaurus/plugin-google-gtag',
+      {
+        trackingID: 'G-7MQRP6PGT1',
+        anonymizeIP: true,
+      },
+    ],
   ],
 
   themeConfig:
