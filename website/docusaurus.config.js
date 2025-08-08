@@ -123,6 +123,10 @@ const config = {
             title: 'More',
             items: [
               {
+                label: 'License',
+                href: '/about/license',
+              },
+              {
                 label: 'GitHub',
                 href: 'https://github.com/TheTrustedAdvisor/FabricAdoptionFramework/edit/main/docs/',
               },
