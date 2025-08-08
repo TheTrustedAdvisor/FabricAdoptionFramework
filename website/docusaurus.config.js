@@ -84,7 +84,7 @@ const config = {
         items: [
           {
             href: 'https://www.the-trusted-advisor.com',
-            label: 'The Trusted Advisor',
+            label: 'The Trusted Advisor (Matthias Falland)',
             position: 'left',
           },
           {
