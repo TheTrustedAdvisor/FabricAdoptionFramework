@@ -1,4 +1,5 @@
 ---
+publish: true
 id: home
 slug: /
 title: What is the Fabric Adoption Framework?
@@ -9,7 +10,6 @@ tags:
   - Governance
   - Cloud Strategy
 sidebar_position: 1
-publish: true
 ---
 
 # What is the Fabric Adoption Framework?
