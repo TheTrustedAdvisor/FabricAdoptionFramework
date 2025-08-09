@@ -340,6 +340,7 @@ jobs:
         shell: bash
         run: |
           bash -euo pipefail <<'BASH'
+          set -x
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A docs/about/changes docs/about/whats-new.md || true
@@ -349,4 +350,4 @@ jobs:
             git commit -m "docs(changelog): update whats-new and per-commit entries [skip ci]"
             git push
           fi
-          BASH>
+          BASH
