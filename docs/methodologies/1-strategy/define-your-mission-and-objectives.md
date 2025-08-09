@@ -92,8 +92,8 @@ A concise Fabric mission statement should answer:
 | Key Result                                     | Baseline | Target & Date         | Owner       | Metric/KPI               |
 | ---------------------------------------------- | -------- | --------------------- | ----------- | ------------------------ |
 | Track & allocate **costs by workspace/domain** | Partial  | 100% by **Q3**        | FinOps Lead | Monthly variance reports |
-| Keep **capacity overrun** within limits        | 8%       | <2% monthly by **Q4** | FinOps Lead | Overrun rate, alerts     |
-| Reduce **MTTR for P1 incidents**               | 5h       | <2h by **Q4**         | SRE Lead    | Incident dashboard       |
+| Keep **capacity overrun** within limits        | 8%       | less than 2% monthly by **Q4** | FinOps Lead | Overrun rate, alerts     |
+| Reduce **MTTR for P1 incidents**               | 5h       | less than 2h by **Q4**         | SRE Lead    | Incident dashboard       |
 
 > Customize baselines/targets to your context; ensure each KR is auditable.
 
