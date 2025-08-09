@@ -1,9 +1,9 @@
 ---
-  sha: daf7fd9d5799e861a2aba5c89fbcad614e64f4fc
-  author: TheTrustedAdvisor
-  date: 2025-08-08 17:00:41 +0200
-  subject: "Updated Links"
-  ---
+sha: daf7fd9d5799e861a2aba5c89fbcad614e64f4fc
+author: TheTrustedAdvisor
+date: 2025-08-08 17:00:41 +0200
+subject: "Updated Links"
+---
 
   # Zusammenfassung der Änderungen
 
