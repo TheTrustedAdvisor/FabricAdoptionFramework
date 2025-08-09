@@ -48,6 +48,7 @@ jobs:
               return subprocess.check_output(cmd, shell=True, text=True, encoding='utf-8').strip()
 
           def normalize_front_matter(text: str) -> str:
+              text = text.replace('\\n', '\n')
               # Remove BOM/NUL and normalize front matter delimiters + indentation
               text = text.replace('\ufeff', '').replace('\x00', '')
               lines = text.splitlines(True)
@@ -161,7 +162,7 @@ jobs:
               lines.append('')  # empty line between front matter and body
               lines.append(body_md.strip())
               lines.append('')  # trailing newline
-              return "\\n".join(lines)
+              return "\n".join(lines) + "\n"
 
           created = []
           existing = existing_shas()
