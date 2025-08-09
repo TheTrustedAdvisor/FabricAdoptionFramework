@@ -11,136 +11,115 @@ permissions:
   contents: write
 
 jobs:
-  generate-changelog:
+  changelog:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # we need full history for commit scanning
-
-      - name: Ensure folders exist
-        run: |
-          mkdir -p docs/about/changes
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - name: Install Python deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade openai
 
-      - name: Generate per-commit change notes and update whats-new
+      - name: Assemble changelog
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_KEY }}
+        shell: bash
         run: |
-          python - <<'PY'
-          import os, subprocess, pathlib, textwrap, datetime, json, re
+          python3 - <<'PY'
+          import os, subprocess, re, datetime, textwrap
           from pathlib import Path
-          
-          # --- repo paths ---
+
           REPO = Path('.')
-          CHANGES_DIR = REPO/ 'docs' / 'about' / 'changes'
-          WHATS_NEW = REPO/ 'docs' / 'about' / 'whats-new.md'
+          CHANGES_DIR = REPO / 'docs' / 'about' / 'changes'
+          WHATS_NEW = REPO / 'docs' / 'about' / 'whats-new.md'
           CHANGES_DIR.mkdir(parents=True, exist_ok=True)
 
+          # ---------- Utilities ----------
+          def sh(cmd: str) -> str:
+              return subprocess.check_output(cmd, shell=True, text=True, encoding='utf-8').strip()
+
           def normalize_front_matter(text: str) -> str:
-              # Sanitize odd characters (BOM/NUL) and normalize newlines
+              # Remove BOM/NUL and normalize front matter delimiters + indentation
               text = text.replace('\ufeff', '').replace('\x00', '')
               lines = text.splitlines(True)
 
-              # Find opening delimiter (allow leading whitespace/newlines)
+              # find opening '---'
               i = 0
-              while i < len(lines) and lines[i].strip() == "":
+              while i < len(lines) and lines[i].strip() == '':
                   i += 1
-
-              # If no front matter, return original (just sanitized)
               if not (i < len(lines) and lines[i].lstrip().startswith('---')):
                   return ''.join(lines)
 
-              # Force exact '---\n' for opening delimiter at column 0
               lines[i] = '---\n'
               i += 1
-
-              # Unindent YAML header until closing delimiter, also normalize keys
               while i < len(lines):
                   if lines[i].lstrip().startswith('---'):
-                      # Force exact closing delimiter at column 0
                       lines[i] = '---\n'
                       i += 1
                       break
-                  # Left-trim only spaces/tabs for header lines
-                  header_line = lines[i].lstrip(' \t')
-                  lines[i] = header_line
+                  lines[i] = lines[i].lstrip(' \t')
                   i += 1
 
-              # Ensure single blank line after closing delimiter (as Markdown separator)
-              if i < len(lines):
-                  # If next line is not blank, insert one
-                  if lines[i].strip() != '':
-                      lines.insert(i, '\n')
-              else:
-                  # Ensure file ends with newline
+              if i < len(lines) and lines[i].strip() != '':
+                  lines.insert(i, '\n')
+              elif i >= len(lines):
                   lines.append('\n')
-
               return ''.join(lines)
 
-          # Repair any previously generated change files with indented front matter
-          for _p in (CHANGES_DIR.glob('*.md')):
+          # Repair existing change files
+          for p in CHANGES_DIR.glob('*.md'):
               try:
-                  txt = _p.read_text(encoding='utf-8')
-                  fixed = normalize_front_matter(txt)
-                  if fixed != txt:
-                      _p.write_text(fixed, encoding='utf-8')
+                  raw = p.read_text(encoding='utf-8')
+                  fixed = normalize_front_matter(raw)
+                  if fixed != raw:
+                      p.write_text(fixed, encoding='utf-8')
               except Exception:
                   pass
-
-          # --- helpers ---
-          def sh(cmd: str) -> str:
-            return subprocess.check_output(cmd, shell=True, text=True, encoding='utf-8').strip()
 
           def existing_shas() -> set[str]:
               shas = set()
               for p in CHANGES_DIR.glob('*.md'):
-                  m = re.fullmatch(r'(?:\d{4}-\d{2}-\d{2}-)?([0-9a-f]{40})\.md', p.name)
+                  m = re.fullmatch(r'(?:\\d{4}-\\d{2}-\\d{2}-)?([0-9a-f]{40})\\.md', p.name)
                   if m:
                       shas.add(m.group(1))
                       continue
-                  # fallback: read sha from front matter
                   try:
                       txt = p.read_text(encoding='utf-8')
-                      m2 = re.search(r'^sha:\s*\"?([0-9a-f]{40})\"?\s*$', txt, flags=re.M)
+                      m2 = re.search(r'^sha:\\s*\"?([0-9a-f]{40})\"?\\s*$', txt, flags=re.M)
                       if m2:
                           shas.add(m2.group(1))
                   except Exception:
                       pass
               return shas
 
-          def get_commits() -> list[dict]:
-            # all non-merge commits reachable from HEAD (most recent first)
-            fmt = '%H\x1f%an\x1f%ad\x1f%s'
-            out = sh(f"git log --date=iso --pretty=format:'{fmt}'")
-            commits = []
-            for line in out.splitlines():
-              sha, author, adate, subject = line.split('\x1f')
-              commits.append({'sha': sha, 'author': author, 'date': adate, 'subject': subject})
-            return commits
+          def get_commits():
+              fmt = '%H\\x1f%an\\x1f%ad\\x1f%s'
+              out = sh(f"git log --date=iso --pretty=format:'{fmt}'")
+              commits = []
+              for line in out.splitlines():
+                  sha, author, adate, subject = line.split('\\x1f')
+                  commits.append({'sha': sha, 'author': author, 'date': adate, 'subject': subject})
+              return commits
 
-          def get_commit_files(sha: str) -> list[str]:
-            out = sh(f"git diff-tree -m --no-commit-id --name-only -r {sha}")
-            return [ln.strip() for ln in out.splitlines() if ln.strip()]
+          def get_commit_files(sha: str):
+              out = sh(f"git diff-tree -m --no-commit-id --name-only -r {sha}")
+              return [ln.strip() for ln in out.splitlines() if ln.strip()]
 
           def get_diff(sha: str) -> str:
-            # unified diff without commit message header
-            try:
-              diff = sh(f"git show -m {sha} --pretty=format: --unified=3")
-            except subprocess.CalledProcessError:
-              diff = ''
-            # cap excessively large diffs
-            return diff[:50000]
+              try:
+                  diff = sh(f"git show -m {sha} --pretty=format: --unified=3")
+              except subprocess.CalledProcessError:
+                  diff = ''
+              return diff[:50000]
 
           def is_merge_commit(sha: str) -> bool:
               try:
@@ -149,40 +128,31 @@ jobs:
               except Exception:
                   return False
 
-          # --- OpenAI ---
-          use_openai = bool(os.environ.get('OPENAI_API_KEY'))
-          if not use_openai:
-            raise SystemExit('OPENAI_API_KEY not set')
-
-          try:
-            from openai import OpenAI
-            client = OpenAI()
-            def call_model(system, user):
-              resp = client.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature=0.4,
-                messages=[
-                  {"role": "system", "content": system},
-                  {"role": "user", "content": user}
-                ],
-              )
-              return resp.choices[0].message.content.strip()
-          except Exception as e:
-            raise
+          # ---------- OpenAI ----------
+          from openai import OpenAI
+          client = OpenAI()
 
           SYSTEM = (
-            "Du bist ein technischer Redaktor, der commit-basierte Aenderungen in **umgangssprachlichem**, aber praezisem Deutsch erklaert. "
-            "Schreibe Markdown ohne Code-DIFFs. Fasse zusammen, *was* sich konzeptionell geaendert hat und *warum* es wichtig ist. "
-            "Nutze kurze Ueberschriften und Bulletpoints. Wenn sinnvoll, nenne betroffene Dateien/Abschnitte in Klammern."
+              "Du bist ein technischer Redaktor, der commit-basierte Aenderungen in **umgangssprachlichem**, "
+              "aber praezisem Deutsch erklaert. Schreibe Markdown ohne Code-DIFFs. Fasse zusammen, "
+              "*was* sich konzeptionell geaendert hat und *warum* es wichtig ist. "
+              "Nutze kurze Ueberschriften und Bulletpoints. Wenn sinnvoll, nenne betroffene Dateien/Abschnitte in Klammern."
           )
 
-          def build_commit_markdown(sha, author, date, subject, body_md, merge: bool):
-              # Ensure proper YAML front matter without indentation issues
+          def call_model(system: str, user: str) -> str:
+              resp = client.chat.completions.create(
+                  model="gpt-4o-mini",
+                  temperature=0.4,
+                  messages=[{"role":"system","content":system},{"role":"user","content":user}],
+              )
+              return resp.choices[0].message.content.strip()
+
+          def build_commit_markdown(sha, author, date, subject, body_md, merge: bool) -> str:
               return f"""---
 sha: "{sha}"
 author: "{author}"
 date: "{date}"
-subject: "{subject.replace('"', '\\"')}"
+subject: "{subject.replace('"','\\\"')}"
 merge: {"true" if merge else "false"}
 ---
 
@@ -191,94 +161,88 @@ merge: {"true" if merge else "false"}
 
           created = []
           existing = existing_shas()
-          for c in get_commits():
-            sha = c['sha']
-            if sha in existing:
-              continue
-            files = get_commit_files(sha)
-            # skip commits that touch only this workflow or generated files
-            if files and all(f.startswith('.github/') for f in files):
-              continue
-            diff = get_diff(sha)
-            subject = c['subject']
-            user_prompt = textwrap.dedent(f"""
-            Commit: {sha}
-            Autor: {c['author']}
-            Datum: {c['date']}
-            Betroffene Dateien (Auszug): {', '.join(files[:20]) if files else 'k.A.'}
+          commits = get_commits()
+          for c in commits:
+              sha = c['sha']
+              if sha in existing:
+                  continue
+              files = get_commit_files(sha)
+              if files and all(f.startswith('.github/') for f in files):
+                  continue
+              diff = get_diff(sha)
+              subject = c['subject']
+              user_prompt = textwrap.dedent(f"""
+              Commit: {sha}
+              Autor: {c['author']}
+              Datum: {c['date']}
+              Betroffene Dateien (Auszug): {', '.join(files[:20]) if files else 'k.A.'}
 
-            Commit-Betreff: {subject}
+              Commit-Betreff: {subject}
 
-            Hier der technische Diff (nur fuer dich zur Analyse, **nicht** als Ausgabe uebernehmen):
-            ---
-            {diff}
-            ---
+              Hier der technische Diff (nur fuer dich zur Analyse, **nicht** als Ausgabe uebernehmen):
+              ---
+              {diff}
+              ---
 
-            Aufgabe: Schreibe eine leicht verstaendliche, umgangssprachliche Zusammenfassung der Aenderungen als Markdown.
-            Anforderungen:
-            - Kein DIFF, keine Code-Blöcke mit +/-
-            - Max. 10 Bulletpoints, klar und praegnant
-            - Wenn Docs betroffen sind, erwaehne relevante Themenbereiche
-            - Schließe mit einem kurzen Satz: "Warum das wichtig ist"
-            """)
-            body_md = call_model(SYSTEM, user_prompt)
-            # --- filename logic: prefix date (YYYY-MM-DD) before sha ---
-            date_prefix = c['date'].split(" ")[0]
-            filename = f"{date_prefix}-{sha}.md"
-            out_path = CHANGES_DIR / filename
-            merge_flag = is_merge_commit(sha)
-            out_path.write_text(build_commit_markdown(sha, c['author'], c['date'], subject, body_md, merge_flag), encoding='utf-8')
-            created.append(out_path)
+              Aufgabe: Schreibe eine leicht verstaendliche, umgangssprachliche Zusammenfassung der Aenderungen als Markdown.
+              Anforderungen:
+              - Kein DIFF, keine Code-Blöcke mit +/-
+              - Max. 10 Bulletpoints, klar und praegnant
+              - Wenn Docs betroffen sind, erwaehne relevante Themenbereiche
+              - Schließe mit einem kurzen Satz: "Warum das wichtig ist"
+              """)
+              body_md = call_model(SYSTEM, user_prompt)
+              date_prefix = c['date'].split(' ')[0]
+              filename = f"{date_prefix}-{sha}.md"
+              out_path = CHANGES_DIR / filename
+              merge_flag = is_merge_commit(sha)
+              out_path.write_text(
+                  build_commit_markdown(sha, c['author'], c['date'], subject, body_md, merge_flag),
+                  encoding='utf-8'
+              )
+              created.append(out_path)
 
-          # Build whats-new from the *latest* 20 change files (by commit date order from git)
-          # Collect entries: read title (first heading) or use subject
+          # Build what's-new from latest 20 entries
           def read_entry(p: Path) -> dict:
-            txt = p.read_text(encoding='utf-8')
-            msha = re.search(r'^sha:\s*([0-9a-f]{40})$', txt, flags=re.M)
-            msub = re.search(r'^subject:\s*"?(.*?)"?$', txt, flags=re.M)
-            mdate = re.search(r'^date:\s*(.*)$', txt, flags=re.M)
-            # try to grab first markdown heading as teaser
-            mhead = re.search(r'^#\s+(.+)$', txt, flags=re.M)
-            teaser = mhead.group(1).strip() if mhead else (msub.group(1) if msub else '')
-            return {
-              'sha': msha.group(1) if msha else p.stem,
-              'subject': msub.group(1) if msub else '',
-              'date': mdate.group(1) if mdate else '',
-              'teaser': teaser,
-              'path': p
-            }
+              txt = p.read_text(encoding='utf-8')
+              msha = re.search(r'^sha:\\s*([0-9a-f]{40})$', txt, flags=re.M)
+              msub = re.search(r'^subject:\\s*\"?(.*?)\"?$', txt, flags=re.M)
+              mdate = re.search(r'^date:\\s*(.*)$', txt, flags=re.M)
+              mhead = re.search(r'^#\\s+(.+)$', txt, flags=re.M)
+              teaser = mhead.group(1).strip() if mhead else (msub.group(1) if msub else '')
+              return {'sha': msha.group(1) if msha else p.stem,
+                      'subject': msub.group(1) if msub else '',
+                      'date': mdate.group(1) if mdate else '',
+                      'teaser': teaser,
+                      'path': p}
 
           all_change_files = sorted(CHANGES_DIR.glob('*.md'))
           if all_change_files:
-            # order by commit order from git
-            order_map = {c['sha']: i for i, c in enumerate(get_commits())}
-            def sort_key(p: Path):
-                m = re.fullmatch(r'(?:\d{4}-\d{2}-\d{2}-)?([0-9a-f]{40})', p.stem)
-                key_sha = m.group(1) if m else p.stem
-                return order_map.get(key_sha, 10**9)
-            ordered = sorted(all_change_files, key=sort_key)[:]
-            ordered.reverse()  # newest first
-            latest = [read_entry(p) for p in ordered[:20]]
+              order_map = {c['sha']: i for i, c in enumerate(commits)}
+              def sort_key(p: Path):
+                  m = re.fullmatch(r'(?:\\d{4}-\\d{2}-\\d{2}-)?([0-9a-f]{40})', p.stem)
+                  key_sha = m.group(1) if m else p.stem
+                  return order_map.get(key_sha, 10**9)
+              ordered = sorted(all_change_files, key=sort_key)
+              ordered.reverse()
+              latest = [read_entry(p) for p in ordered[:20]]
 
-            # Ask OpenAI for a short highlight list
-            highlights_input = "\n\n".join(f"- {e['subject']}" for e in latest if e['subject'])
-            wn_prompt = textwrap.dedent(f"""
-            Erstelle eine kurze Rubrik **Was ist neu?** als Markdown-Liste (5–10 Punkte) fuer ein Changelog.
-            Basis sind diese Commit-Betreffzeilen (neueste zuerst):\n\n{highlights_input}
-            Form:
-            - Ueberschrift: "# What's new"
-            - Danach eine knappe Einfuehrung (1 Satz)
-            - Danach eine Liste mit Stichpunkten (nur Klartext, keine Emojis)
-            - Keine Wiederholungen, gerne thematisch zusammenfassen
-            """)
-            wn_md = call_model(
-              "Du schreibst praegnante Release-Highlights in Markdown auf Deutsch (Schweizer Rechtschreibung ohne Eszett).",
-              wn_prompt
-            )
+              highlights_input = "\\n\\n".join(f"- {e['subject']}" for e in latest if e['subject'])
+              wn_prompt = textwrap.dedent(f"""
+              Erstelle eine kurze Rubrik **Was ist neu?** als Markdown-Liste (5–10 Punkte) fuer ein Changelog.
+              Basis sind diese Commit-Betreffzeilen (neueste zuerst):\\n\\n{highlights_input}
+              Form:
+              - Ueberschrift: "# What's new"
+              - Danach eine knappe Einfuehrung (1 Satz)
+              - Danach eine Liste mit Stichpunkten (nur Klartext, keine Emojis)
+              - Keine Wiederholungen, gerne thematisch zusammenfassen
+              """)
+              from openai import OpenAI as _OpenAI  # reuse client
+              wn_md = call_model("Du schreibst praegnante Release-Highlights in Markdown auf Deutsch (Schweizer Rechtschreibung ohne Eszett).", wn_prompt)
 
-            WHATS_NEW.parent.mkdir(parents=True, exist_ok=True)
-            header = f"<!-- Auto-generated by assemble-changelog.yml on {datetime.datetime.utcnow().isoformat()}Z -->\n"
-            WHATS_NEW.write_text(header + "\n" + wn_md.strip() + "\n", encoding='utf-8')
+              WHATS_NEW.parent.mkdir(parents=True, exist_ok=True)
+              header = f"<!-- Auto-generated by assemble-changelog.yml on {datetime.datetime.utcnow().isoformat()}Z -->\\n"
+              WHATS_NEW.write_text(header + "\\n" + wn_md.strip() + "\\n", encoding='utf-8')
 
           print(f"Created {len(created)} change file(s).")
           PY
@@ -289,7 +253,6 @@ merge: {"true" if merge else "false"}
           bash -euo pipefail <<'BASH'
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Stage any new/updated files safely
           git add -A docs/about/changes docs/about/whats-new.md || true
           if git diff --staged --quiet; then
             echo "No changes to commit."
