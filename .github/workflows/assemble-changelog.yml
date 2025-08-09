@@ -48,24 +48,44 @@ jobs:
           CHANGES_DIR.mkdir(parents=True, exist_ok=True)
 
           def normalize_front_matter(text: str) -> str:
-              # Ensure front matter delimiters are at column 0 and header lines are not indented
+              # Sanitize odd characters (BOM/NUL) and normalize newlines
+              text = text.replace('\ufeff', '').replace('\x00', '')
               lines = text.splitlines(True)
+
+              # Find opening delimiter (allow leading whitespace/newlines)
               i = 0
-              # Trim leading BOM/whitespace before first delimiter
               while i < len(lines) and lines[i].strip() == "":
                   i += 1
-              if i < len(lines) and lines[i].lstrip().startswith('---'):
-                  lines[i] = '---\n'
-                  i += 1
-                  # Unindent header lines until closing delimiter
-                  while i < len(lines):
-                      if lines[i].lstrip().startswith('---'):
-                          lines[i] = '---\n'
-                          i += 1
-                          break
-                      # strip only leading spaces in header
-                      lines[i] = lines[i].lstrip()
+
+              # If no front matter, return original (just sanitized)
+              if not (i < len(lines) and lines[i].lstrip().startswith('---')):
+                  return ''.join(lines)
+
+              # Force exact '---\n' for opening delimiter at column 0
+              lines[i] = '---\n'
+              i += 1
+
+              # Unindent YAML header until closing delimiter, also normalize keys
+              while i < len(lines):
+                  if lines[i].lstrip().startswith('---'):
+                      # Force exact closing delimiter at column 0
+                      lines[i] = '---\n'
                       i += 1
+                      break
+                  # Left-trim only spaces/tabs for header lines
+                  header_line = lines[i].lstrip(' \t')
+                  lines[i] = header_line
+                  i += 1
+
+              # Ensure single blank line after closing delimiter (as Markdown separator)
+              if i < len(lines):
+                  # If next line is not blank, insert one
+                  if lines[i].strip() != '':
+                      lines.insert(i, '\n')
+              else:
+                  # Ensure file ends with newline
+                  lines.append('\n')
+
               return ''.join(lines)
 
           # Repair any previously generated change files with indented front matter
