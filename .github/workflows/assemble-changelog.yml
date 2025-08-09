@@ -111,18 +111,17 @@ jobs:
             "Nutze kurze Ueberschriften und Bulletpoints. Wenn sinnvoll, nenne betroffene Dateien/Abschnitte in Klammern."
           )
 
-          def build_commit_markdown(sha: str, author: str, date: str, subject: str, body_md: str) -> str:
-            fm = textwrap.dedent(f"""
-            ---
-            sha: {sha}
-            author: {author}
-            date: {date}
-            subject: "{subject.replace('"','\"')}"
-            ---
-            
-            {body_md.strip()}
-            """).strip() + "\n"
-            return fm
+          def build_commit_markdown(sha, author, date, subject, body_md):
+              # Ensure proper YAML front matter without indentation issues
+              return f"""---
+sha: "{sha}"
+author: "{author}"
+date: "{date}"
+subject: "{subject.replace('"', '\\"')}"
+---
+
+{body_md.strip()}
+"""
 
           created = []
           existing = existing_shas()
@@ -157,7 +156,10 @@ jobs:
             - Schließe mit einem kurzen Satz: "Warum das wichtig ist"
             """)
             body_md = call_model(SYSTEM, user_prompt)
-            out_path = CHANGES_DIR / f"{sha}.md"
+            # --- filename logic: prefix date (YYYY-MM-DD) before sha ---
+            date_prefix = c['date'].split(" ")[0]
+            filename = f"{date_prefix}-{sha}.md"
+            out_path = CHANGES_DIR / filename
             out_path.write_text(build_commit_markdown(sha, c['author'], c['date'], subject, body_md), encoding='utf-8')
             created.append(out_path)
 
