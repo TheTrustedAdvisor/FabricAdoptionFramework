@@ -64,7 +64,7 @@ jobs:
           def get_commits() -> list[dict]:
             # all non-merge commits reachable from HEAD (most recent first)
             fmt = '%H\x1f%an\x1f%ad\x1f%s'
-            out = sh(f"git log --no-merges --date=iso --pretty=format:'{fmt}'")
+            out = sh(f"git log --date=iso --pretty=format:'{fmt}'")
             commits = []
             for line in out.splitlines():
               sha, author, adate, subject = line.split('\x1f')
@@ -72,13 +72,13 @@ jobs:
             return commits
 
           def get_commit_files(sha: str) -> list[str]:
-            out = sh(f"git diff-tree --no-commit-id --name-only -r {sha}")
+            out = sh(f"git diff-tree -m --no-commit-id --name-only -r {sha}")
             return [ln.strip() for ln in out.splitlines() if ln.strip()]
 
           def get_diff(sha: str) -> str:
             # unified diff without commit message header
             try:
-              diff = sh(f"git show {sha} --pretty=format: --unified=3")
+              diff = sh(f"git show -m {sha} --pretty=format: --unified=3")
             except subprocess.CalledProcessError:
               diff = ''
             # cap excessively large diffs
@@ -214,12 +214,17 @@ jobs:
           PY
 
       - name: Commit and push changes
+        shell: bash
         run: |
+          bash -euo pipefail <<'BASH'
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/about/changes/*.md docs/about/whats-new.md || true
+          # Stage any new/updated files safely
+          git add -A docs/about/changes docs/about/whats-new.md || true
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else
             git commit -m "docs(changelog): update whats-new and per-commit entries [skip ci]"
             git push
+          fi
+          BASH
