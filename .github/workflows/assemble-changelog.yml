@@ -37,7 +37,7 @@ jobs:
         shell: bash
         run: |
           python3 -u - <<'PY'
-          import os, subprocess, re, datetime, textwrap, sys
+          import os, subprocess, re, datetime, textwrap, sys, calendar
           from pathlib import Path
 
           REPO = Path('.')
@@ -331,90 +331,84 @@ jobs:
               processed += 1
               log(f"✅ Datei erstellt: {out_path.name}")
 
-          # Build what's-new from latest 20 entries
+          # Build what's-new deterministically from detailed change files (no model)
           def read_entry(p: Path) -> dict:
               txt = p.read_text(encoding='utf-8')
-              msha = re.search(r'^sha:\\s*([0-9a-f]{40})$', txt, flags=re.M)
-              msub = re.search(r'^subject:\\s*\"?(.*?)\"?$', txt, flags=re.M)
-              mdate = re.search(r'^date:\\s*(.*)$', txt, flags=re.M)
-              mhead = re.search(r'^#\\s+(.+)$', txt, flags=re.M)
-              teaser = mhead.group(1).strip() if mhead else (msub.group(1) if msub else '')
-              return {'sha': msha.group(1) if msha else p.stem,
-                      'subject': msub.group(1) if msub else '',
-                      'date': mdate.group(1) if mdate else '',
-                      'teaser': teaser,
-                      'path': p}
+              msha = re.search(r'^sha:\s*("?)([0-9a-f]{40})\1$', txt, flags=re.M)
+              msub = re.search(r'^subject:\s*"?(.+?)"?\s*$', txt, flags=re.M)
+              mdate = re.search(r'^date:\s*(.+)$', txt, flags=re.M)
+              mhead = re.search(r'^#\s+(.+)$', txt, flags=re.M)
+              teaser = (mhead.group(1).strip() if mhead else (msub.group(1).strip() if msub else '')).strip()
+              return {
+                  'sha': (msha.group(2) if msha else p.stem),
+                  'subject': (msub.group(1).strip() if msub else ''),
+                  'date': (mdate.group(1).strip() if mdate else ''),
+                  'title': teaser,
+                  'path': p
+              }
+
+          def mdx_safe(s: str) -> str:
+              # keep bullets safe in MDX context
+              s = s.replace('<', '&lt;').replace('>', '&gt;')
+              return s
 
           log("Erzeuge 'whats-new.md'…")
           all_change_files = sorted(CHANGES_DIR.glob('*.md'))
           if all_change_files:
+              # sort by commit order from git log (newest first)
               order_map = {c['sha']: i for i, c in enumerate(commits)}
               def sort_key(p: Path):
-                  m = re.fullmatch(r'(?:\\d{4}-\\d{2}-\\d{2}-)?([0-9a-f]{40})', p.stem)
+                  m = re.fullmatch(r'(?:\d{4}-\d{2}-\d{2}-)?([0-9a-f]{40})', p.stem)
                   key_sha = m.group(1) if m else p.stem
                   return order_map.get(key_sha, 10**9)
-              ordered = sorted(all_change_files, key=sort_key)
-              ordered.reverse()
-              latest = [read_entry(p) for p in ordered[:60]]  # take up to ~60 recent entries
+              ordered = sorted(all_change_files, key=sort_key, reverse=True)
 
-              # Group by year-month
-              by_month = {}
-              for e in latest:
-                  # parse YYYY-MM from date (fallback to filename prefix if needed)
-                  m = re.search(r'^(\\d{4})-(\\d{2})', e['date'])
+              entries = [read_entry(p) for p in ordered]
+
+              # group by YYYY-MM
+              by_month: dict[str, list[dict]] = {}
+              for e in entries:
+                  # prefer date from front matter, else from filename prefix
+                  m = re.search(r'^(\d{4})-(\d{2})-(\d{2})', e['date'])
                   if not m:
-                      m = re.search(r'^(\\d{4})-(\\d{2})', e['path'].name)
-                  ym = f"{m.group(1)}-{m.group(2)}" if m else "unknown"
+                      m = re.search(r'^(\d{4})-(\d{2})-(\d{2})', e['path'].name)
+                  if m:
+                      ym = f"{m.group(1)}-{m.group(2)}"
+                  else:
+                      ym = "unknown"
                   by_month.setdefault(ym, []).append(e)
 
-              # Prepare a compact feed for the model
-              # Use title (H1) from the file if present; else subject as fallback.
-              def extract_title(e: dict) -> str:
-                  try:
-                      txt = e['path'].read_text(encoding='utf-8')
-                  except Exception:
-                      return e.get('subject') or ''
-                  mh1 = re.search(r'^#\\s+(.+)$', txt, flags=re.M)
-                  return mh1.group(1).strip() if mh1 else (e.get('subject') or '')
+              def month_label(ym: str) -> str:
+                  if ym == "unknown":
+                      return "Unknown"
+                  y, m = ym.split('-')
+                  month_name = calendar.month_name[int(m)]  # English month names
+                  return f"{month_name} {y}"
 
-              # Build an input string grouped by month, newest month first
-              months_sorted = sorted(by_month.keys(), reverse=True)
-              grouped_input_parts = []
-              for ym in months_sorted:
-                  items = by_month[ym][:12]  # cap per month to avoid token bloat
-                  titles = [f"- {extract_title(e)}" for e in items if extract_title(e)]
-                  if not titles:
-                      continue
-                  grouped_input_parts.append(f"{ym}\\n" + "\\n".join(titles))
-              grouped_input = "\\n\\n".join(grouped_input_parts)
-
-              wn_prompt = textwrap.dedent(f"""
-              Create a concise **What's new** page in English for a Docusaurus docs site.
-
-              Requirements:
-              - Start with: "# What's new"
-              - Then list sections by month (most recent first), using "## Month YYYY" (e.g., "## August 2025").
-              - Under each month, add 3–8 bullet points summarising the most important changes for that month.
-              - Use plain text bullets (no emojis, no code diffs).
-              - Avoid generic statements; be specific to the listed items.
-              - Do not invent features; only summarise what is implied by the items.
-              - Keep it succinct.
-
-              Source items grouped by YYYY-MM (newest first):
-              ---
-              {grouped_input}
-              ---
-              """)
-
-              wn_md = call_model(
-                  "You are a precise release highlight writer. Use clear English and monthly grouping.",
-                  wn_prompt
-              )
+              # Compose Markdown
+              parts = []
+              parts.append("# What's new")
+              parts.append("")
+              # newest month first
+              for ym in sorted(by_month.keys(), reverse=True):
+                  month_items = by_month[ym]
+                  # cap to top 8–10 most recent for readability
+                  items = month_items[:10]
+                  parts.append(f"## {month_label(ym)}")
+                  parts.append("")
+                  for e in items:
+                      title = e['title'] or e['subject'] or e['path'].stem
+                      title = mdx_safe(title.strip())
+                      filename = e['path'].name
+                      short_sha = e['sha'][:7]
+                      # link to the detailed change page
+                      parts.append(f"- {title} ([details](/docs/about/changes/{filename})) [{short_sha}]")
+                  parts.append("")
 
               WHATS_NEW.parent.mkdir(parents=True, exist_ok=True)
-              header = f"<!-- Auto-generated by assemble-changelog.yml on {datetime.datetime.now(datetime.timezone.utc).isoformat()} -->\\n"
-              WHATS_NEW.write_text(header + "\\n" + wn_md.strip() + "\\n", encoding='utf-8')
-              log(f"'whats-new.md' updated (months: {len(months_sorted)})")
+              header = f"<!-- Auto-generated by assemble-changelog.yml on {datetime.datetime.now(datetime.timezone.utc).isoformat()} -->"
+              WHATS_NEW.write_text(header + "\n\n" + "\n".join(parts).strip() + "\n", encoding='utf-8')
+              log(f"'whats-new.md' updated (months: {len(by_month)})")
 
           log(f"FERTIG. Neue Dateien: {len(created)} | Repariert: {repaired} | Übersprungen (vorhanden): {skipped_existing} | Übersprungen (.github): {skipped_workflow_only} | Gesamt-Commits: {len(commits)}")
           log("Changelog-Lauf abgeschlossen.")
