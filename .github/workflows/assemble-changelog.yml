@@ -34,6 +34,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_KEY }}
           DEBUG: ${{ vars.CHANGELOG_DEBUG }}
           PYTHONUNBUFFERED: "1"
+          REGENERATE_ALL_CHANGELOGS: ${{ vars.REGENERATE_ALL_CHANGELOGS }}
         shell: bash
         run: |
           python3 -u - <<'PY'
@@ -61,6 +62,8 @@ jobs:
               dlog("Fallback 'sh' helper definiert.")
 
           log("Starte Changelog-Lauf…")
+          REGENERATE_ALL = os.environ.get('REGENERATE_ALL_CHANGELOGS', '').lower() in ('1','true','yes','on')
+          log(f"Regeneration mode: {'ALL commits' if REGENERATE_ALL else 'ONLY new commits'}")
 
           # ---------- MDX Sanitizing helpers ----------
           import html
@@ -208,18 +211,34 @@ jobs:
           client = OpenAI()
 
           SYSTEM = (
-              "You are a technical release note writer. For a given Git commit + diff, write a concise, plain-English summary in Markdown.\n"
-              "- Tone: neutral, informative; avoid marketing fluff and emojis.\n"
-              "- Do NOT include code diffs.\n"
-              "- Prefer 5–10 bullet points, short and concrete.\n"
-              "- Explain WHAT changed and WHY it matters (end with one line starting with 'Why it matters:').\n"
-              "- Use British spelling or neutral English.\n"
+              "You are a release-note writer focusing ONLY on non-technical documentation changes.\n"
+              "Scope to include:\n"
+              "- Documentation content updates (wording, sections, pages, examples)\n"
+              "- Information architecture & navigation (sidebars, categories, slugs)\n"
+              "- Governance/policies, naming conventions, versioning/structure visible to readers\n"
+              "- Visual/UX of docs site that affects readers (headings, TOC, landing pages)\n"
+              "Explicitly EXCLUDE:\n"
+              "- Source code, pipelines, build tweaks, formatting-only diffs, dependency bumps, lockfiles\n"
+              "- Internal refactors that do not change rendered docs\n"
+              "- Pure CI/.github changes unless they alter what end users/readers see\n"
+              "\n"
+              "Output style (Markdown):\n"
+              "- 5–10 bullet points MAX, each describing ONE non-technical change.\n"
+              "- Each bullet starts with an impact tag: **[Impact: High|Medium|Low]**.\n"
+              "- Each bullet must be categorized as one of: Content update, Navigation change, Naming/terminology, Data update, Governance/access (add in parentheses after the impact tag).\n"
+              "- Be specific and plain-English; no marketing language, no emojis.\n"
+              "- After each bullet, add two links:\n"
+              "   1. [details](/docs/about/changes/<markdown_date_filename>)\n"
+              "   2. [commit](https://github.com/TheTrustedAdvisor/FabricAdoptionFramework/commit/<sha>)\n"
+              "- Do NOT include raw diffs or code fences of +/-.\n"
+              "- End with a single sentence starting with 'Why it matters:' that synthesises the overall effect.\n"
           )
 
           TITLE_SYSTEM = (
               "You create ultra-short, informative English titles for commit-level change logs.\n"
               "- 3–8 words, no ending period, no emojis.\n"
-              "- Capture the essence of the change, not the process (e.g., 'Improve navigation sidebar collapse').\n"
+              "- Capture the essence of the change as seen by documentation readers.\n"
+              "- Prefer wording that reflects docs structure/content/navigation over code/process.\n"
               "- Avoid generic words like 'update', 'changes', 'stuff'.\n"
           )
 
@@ -256,14 +275,19 @@ jobs:
               lines.append(f'merge: {"true" if merge else "false"}')
               lines.append('---')
               lines.append('')
+              # Commit link at top
+              lines.append(f"[View commit on GitHub](https://github.com/TheTrustedAdvisor/FabricAdoptionFramework/commit/{sha})")
+              lines.append('')
+              # Short intro paragraph
+              # Compose a summary sentence from the subject line
+              intro = f"This commit: {subject.strip()}"
+              lines.append(intro)
+              lines.append('')
               # H1 title
               lines.append(f"# {title_line}")
               lines.append('')
               # Body
               lines.append(body_md.strip())
-              lines.append('')
-              # GitHub link
-              lines.append(f"[View this commit on GitHub](https://github.com/TheTrustedAdvisor/FabricAdoptionFramework/commit/{sha})")
               lines.append('')
               return "\n".join(lines)
 
@@ -279,7 +303,7 @@ jobs:
               sha = c['sha']
               subject = c['subject']
               log(f"[{idx}/{len(commits)}] Prüfe Commit {sha[:7]} – {subject}")
-              if sha in existing:
+              if (not REGENERATE_ALL) and (sha in existing):
                   skipped_existing += 1
                   dlog(f"Übersprungen (bereits vorhanden): {sha[:7]}")
                   continue
@@ -307,12 +331,14 @@ jobs:
               {diff}
               ---
 
-              Aufgabe: Schreibe eine leicht verstaendliche, umgangssprachliche Zusammenfassung der Aenderungen als Markdown.
+              Aufgabe: Schreibe eine kurze, gut lesbare Zusammenfassung (Markdown) NUR zu NICHT‑TECHNISCHEN Änderungen, die Leser*innen der Dokumentation betreffen (Inhalte, Struktur, Navigation, Benennung, Governance).
               Anforderungen:
-              - Kein DIFF, keine Code-Blöcke mit +/-
-              - Max. 10 Bulletpoints, klar und praegnant
-              - Wenn Docs betroffen sind, erwaehne relevante Themenbereiche
-              - Schließe mit einem kurzen Satz: "Warum das wichtig ist"
+              - Max. 10 Bulletpoints, klar und prägnant
+              - JEDER Bullet beginnt mit **[Impact: High|Medium|Low]**
+              - Kein DIFF, keine Code-Blöcke mit +/-; keine Build-/Pipeline-/Refactor-Details
+              - Ignoriere rein technische Änderungen, die keine sichtbare Auswirkung auf die Doku haben
+              - Wenn nichts Relevantes für Leser*innen geändert wurde, antworte mit einem einzigen Bullet **[Impact: Low] No reader-visible documentation changes.**
+              - Schließe mit einem kurzen Satz: "Why it matters: …" (kurz begründen)
               """)
               dlog("Calling OpenAI for English body…")
               # Force English in the user prompt.
@@ -386,7 +412,33 @@ jobs:
                   return f"{month_name} {y}"
 
               # Compose Markdown
+              # Find latest commit date for badge
+              latest_entry = max(entries, key=lambda e: e['date'] if e['date'] else '', default=None)
+              latest_date = ''
+              if latest_entry and latest_entry['date']:
+                  latest_date = latest_entry['date'].split()[0]
+              badge = ''
+              if latest_date:
+                  badge = f"![Last updated](https://img.shields.io/badge/last%20updated-{latest_date.replace('-', '--')}-brightgreen)"
+
+              # Proper frontmatter as required
+              fm = [
+                  "---",
+                  "id: whats-new",
+                  "title: What's new",
+                  "sidebar_label: What's new",
+                  "---",
+                  "",
+              ]
+
               parts = []
+              # Badge at the top
+              if badge:
+                  parts.append(badge)
+                  parts.append("")
+              # Docusaurus frontmatter
+              parts = fm + parts
+              # Main title
               parts.append("# What's new")
               parts.append("")
               # newest month first
@@ -395,22 +447,30 @@ jobs:
                   # cap to top 8–10 most recent for readability
                   items = month_items[:10]
                   parts.append(f"## {month_label(ym)}")
+                  # One-line summary for the month
+                  # Compose a summary from the first 2 entries' subjects (or at least one)
+                  summary_titles = [mdx_safe((e['title'] or e['subject'] or '').strip()) for e in items[:2]]
+                  summary = " • ".join(summary_titles)
+                  if not summary:
+                      summary = "No reader-visible documentation changes."
+                  parts.append(f"{summary}")
                   parts.append("")
                   for e in items:
                       title = e['title'] or e['subject'] or e['path'].stem
                       title = mdx_safe(title.strip())
                       filename = e['path'].name
                       short_sha = e['sha'][:7]
-                      # link to the detailed change page
-                      parts.append(f"- {title} ([details](/docs/about/changes/{filename})) [{short_sha}]")
+                      # two links: details and commit
+                      parts.append(f"- {title} [details](/docs/about/changes/{filename}) [commit](https://github.com/TheTrustedAdvisor/FabricAdoptionFramework/commit/{e['sha']})")
                   parts.append("")
 
               WHATS_NEW.parent.mkdir(parents=True, exist_ok=True)
-              header = f"<!-- Auto-generated by assemble-changelog.yml on {datetime.datetime.now(datetime.timezone.utc).isoformat()} -->"
-              WHATS_NEW.write_text(header + "\n\n" + "\n".join(parts).strip() + "\n", encoding='utf-8')
+              content = "\n".join(parts).strip() + "\n"
+              WHATS_NEW.write_text(content, encoding='utf-8')
               log(f"'whats-new.md' updated (months: {len(by_month)})")
 
           log(f"FERTIG. Neue Dateien: {len(created)} | Repariert: {repaired} | Übersprungen (vorhanden): {skipped_existing} | Übersprungen (.github): {skipped_workflow_only} | Gesamt-Commits: {len(commits)}")
+          dlog(f"REGENERATE_ALL_CHANGELOGS={os.environ.get('REGENERATE_ALL_CHANGELOGS')!r}")
           log("Changelog-Lauf abgeschlossen.")
           PY
 
