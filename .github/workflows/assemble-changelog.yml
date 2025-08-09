@@ -148,16 +148,20 @@ jobs:
               return resp.choices[0].message.content.strip()
 
           def build_commit_markdown(sha, author, date, subject, body_md, merge: bool) -> str:
-              return f"""---
-sha: "{sha}"
-author: "{author}"
-date: "{date}"
-subject: "{subject.replace('"','\\\"')}"
-merge: {"true" if merge else "false"}
----
-
-{body_md.strip()}
-"""
+              # Build front matter safely without triple-quoted string (avoids YAML parser confusion in workflow files)
+              sanitized_subject = subject.replace('"', '\\"')
+              lines = []
+              lines.append('---')
+              lines.append(f'sha: "{sha}"')
+              lines.append(f'author: "{author}"')
+              lines.append(f'date: "{date}"')
+              lines.append(f'subject: "{sanitized_subject}"')
+              lines.append(f'merge: {"true" if merge else "false"}')
+              lines.append('---')
+              lines.append('')  # empty line between front matter and body
+              lines.append(body_md.strip())
+              lines.append('')  # trailing newline
+              return "\\n".join(lines)
 
           created = []
           existing = existing_shas()
