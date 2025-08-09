@@ -150,7 +150,7 @@ Use this rubric to self‑score each dimension. Keep evidence and notes for tran
 | ------------------- | ------------------------------------------------- | ------ | ------ | ------------------ | ------- | -------------------------------------------------------------- |
 | Security & Access   | Broad workspace admin roles; no RLS on key models | High   | Med    | Security Architect | 2025‑Q4 | All certified models with RLS; least‑privilege workspace roles |
 | DevOps & Change     | Manual releases; no versioning for notebooks      | High   | High   | Platform Eng Lead  | 2025‑Q3 | Git+CI/CD with tests for all artifacts                         |
-| Operations & FinOps | No capacity budget alerts                         | Med    | Low    | FinOps Lead        | 2025‑Q3 | Monthly budget alerts; <5% overrun                             |
+| Operations & FinOps | No capacity budget alerts                         | Med    | Low    | FinOps Lead        | 2025‑Q3 | Monthly budget alerts; less than 5% overrun                             |
 
 > Copy this table per domain or platform area.
 
@@ -266,8 +266,8 @@ Use this rubric to self‑score each dimension. Keep evidence and notes for tran
 * **O:** Make the platform safe and reliable at scale.
 
   * **KR1:** 90% of workspaces with Git & CI/CD enabled
-  * **KR2:** <2% monthly capacity overrun; 100% cost alerts in place
-  * **KR3:** P0 incidents ≤ 1 per quarter; MTTR < 2 hours
+  * **KR2:** less than 2% monthly capacity overrun; 100% cost alerts in place
+  * **KR3:** P0 incidents ≤ 1 per quarter; MTTR less than  2 hours
 
 **Product/Domain OKRs**
 
