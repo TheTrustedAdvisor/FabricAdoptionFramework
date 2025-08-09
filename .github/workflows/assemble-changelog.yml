@@ -208,11 +208,34 @@ jobs:
           client = OpenAI()
 
           SYSTEM = (
-              "Du bist ein technischer Redaktor, der commit-basierte Aenderungen in **umgangssprachlichem**, "
-              "aber praezisem Deutsch erklaert. Schreibe Markdown ohne Code-DIFFs. Fasse zusammen, "
-              "*was* sich konzeptionell geaendert hat und *warum* es wichtig ist. "
-              "Nutze kurze Ueberschriften und Bulletpoints. Wenn sinnvoll, nenne betroffene Dateien/Abschnitte in Klammern."
+              "You are a technical release note writer. For a given Git commit + diff, write a concise, plain-English summary in Markdown.\n"
+              "- Tone: neutral, informative; avoid marketing fluff and emojis.\n"
+              "- Do NOT include code diffs.\n"
+              "- Prefer 5–10 bullet points, short and concrete.\n"
+              "- Explain WHAT changed and WHY it matters (end with one line starting with 'Why it matters:').\n"
+              "- Use British spelling or neutral English.\n"
           )
+
+          TITLE_SYSTEM = (
+              "You create ultra-short, informative English titles for commit-level change logs.\n"
+              "- 3–8 words, no ending period, no emojis.\n"
+              "- Capture the essence of the change, not the process (e.g., 'Improve navigation sidebar collapse').\n"
+              "- Avoid generic words like 'update', 'changes', 'stuff'.\n"
+          )
+
+          def make_short_title(subject: str, files: list[str], diff_snippet: str) -> str:
+              seed = "Files: " + ", ".join(files[:12]) if files else "Files: n/a"
+              prompt = (
+                  "Write a 3–8 word English title that summarises the commit.\n"
+                  "Be specific. Avoid generic words. No emojis, no trailing dot.\n\n"
+                  f"Subject: {subject}\n"
+                  f"{seed}\n"
+                  "Diff (truncated, for context only):\n---\n"
+                  f"{diff_snippet[:2000]}\n---\n"
+              )
+              t = call_model(TITLE_SYSTEM, prompt)
+              # one line, strip Markdown code fences just in case
+              return t.strip().strip("#").strip()
 
           def call_model(system: str, user: str) -> str:
               resp = client.chat.completions.create(
@@ -222,8 +245,7 @@ jobs:
               )
               return resp.choices[0].message.content.strip()
 
-          def build_commit_markdown(sha, author, date, subject, body_md, merge: bool) -> str:
-              # Build front matter safely without triple-quoted string (avoids YAML parser confusion in workflow files)
+          def build_commit_markdown(sha, author, date, subject, body_md, merge: bool, title_line: str) -> str:
               sanitized_subject = subject.replace('"', '\\"')
               lines = []
               lines.append('---')
@@ -233,10 +255,17 @@ jobs:
               lines.append(f'subject: "{sanitized_subject}"')
               lines.append(f'merge: {"true" if merge else "false"}')
               lines.append('---')
-              lines.append('')  # empty line between front matter and body
+              lines.append('')
+              # H1 title
+              lines.append(f"# {title_line}")
+              lines.append('')
+              # Body
               lines.append(body_md.strip())
-              lines.append('')  # trailing newline
-              return "\n".join(lines) + "\n"
+              lines.append('')
+              # GitHub link
+              lines.append(f"[View this commit on GitHub](https://github.com/TheTrustedAdvisor/FabricAdoptionFramework/commit/{sha})")
+              lines.append('')
+              return "\n".join(lines)
 
           created = []
           existing = existing_shas()
@@ -261,6 +290,10 @@ jobs:
                   continue
               diff = get_diff(sha)
               dlog(f"Diff-Länge: {len(diff)} Zeichen")
+              # Build dynamic English title: "Changes – YYYY-MM-DD: <short title> (<shortsha>)"
+              date_prefix = c['date'].split(' ')[0]
+              short_title = make_short_title(subject, files, diff)
+              title_line = f"Changes – {date_prefix}: {short_title} ({sha[:7]})"
               user_prompt = textwrap.dedent(f"""
               Commit: {sha}
               Autor: {c['author']}
@@ -281,16 +314,17 @@ jobs:
               - Wenn Docs betroffen sind, erwaehne relevante Themenbereiche
               - Schließe mit einem kurzen Satz: "Warum das wichtig ist"
               """)
-              dlog("Rufe OpenAI an…")
+              dlog("Calling OpenAI for English body…")
+              # Force English in the user prompt.
+              user_prompt = "Write the following summary in ENGLISH.\n\n" + user_prompt
               body_md = call_model(SYSTEM, user_prompt)
               body_md, s_new = sanitize_for_mdx(body_md)
-              dlog(f"MDX-Sanitize angewendet (neue Datei): {s_new} Ersetzungen")
-              date_prefix = c['date'].split(' ')[0]
+              dlog(f"MDX sanitize for new file: {s_new} replacements")
               filename = f"{date_prefix}-{sha}.md"
               out_path = CHANGES_DIR / filename
               merge_flag = is_merge_commit(sha)
               out_path.write_text(
-                  build_commit_markdown(sha, c['author'], c['date'], subject, body_md, merge_flag),
+                  build_commit_markdown(sha, c['author'], c['date'], subject, body_md, merge_flag, title_line),
                   encoding='utf-8'
               )
               created.append(out_path)
@@ -321,25 +355,66 @@ jobs:
                   return order_map.get(key_sha, 10**9)
               ordered = sorted(all_change_files, key=sort_key)
               ordered.reverse()
-              latest = [read_entry(p) for p in ordered[:20]]
+              latest = [read_entry(p) for p in ordered[:60]]  # take up to ~60 recent entries
 
-              highlights_input = "\\n\\n".join(f"- {e['subject']}" for e in latest if e['subject'])
+              # Group by year-month
+              by_month = {}
+              for e in latest:
+                  # parse YYYY-MM from date (fallback to filename prefix if needed)
+                  m = re.search(r'^(\\d{4})-(\\d{2})', e['date'])
+                  if not m:
+                      m = re.search(r'^(\\d{4})-(\\d{2})', e['path'].name)
+                  ym = f"{m.group(1)}-{m.group(2)}" if m else "unknown"
+                  by_month.setdefault(ym, []).append(e)
+
+              # Prepare a compact feed for the model
+              # Use title (H1) from the file if present; else subject as fallback.
+              def extract_title(e: dict) -> str:
+                  try:
+                      txt = e['path'].read_text(encoding='utf-8')
+                  except Exception:
+                      return e.get('subject') or ''
+                  mh1 = re.search(r'^#\\s+(.+)$', txt, flags=re.M)
+                  return mh1.group(1).strip() if mh1 else (e.get('subject') or '')
+
+              # Build an input string grouped by month, newest month first
+              months_sorted = sorted(by_month.keys(), reverse=True)
+              grouped_input_parts = []
+              for ym in months_sorted:
+                  items = by_month[ym][:12]  # cap per month to avoid token bloat
+                  titles = [f"- {extract_title(e)}" for e in items if extract_title(e)]
+                  if not titles:
+                      continue
+                  grouped_input_parts.append(f"{ym}\\n" + "\\n".join(titles))
+              grouped_input = "\\n\\n".join(grouped_input_parts)
+
               wn_prompt = textwrap.dedent(f"""
-              Erstelle eine kurze Rubrik **Was ist neu?** als Markdown-Liste (5–10 Punkte) fuer ein Changelog.
-              Basis sind diese Commit-Betreffzeilen (neueste zuerst):\\n\\n{highlights_input}
-              Form:
-              - Ueberschrift: "# What's new"
-              - Danach eine knappe Einfuehrung (1 Satz)
-              - Danach eine Liste mit Stichpunkten (nur Klartext, keine Emojis)
-              - Keine Wiederholungen, gerne thematisch zusammenfassen
+              Create a concise **What's new** page in English for a Docusaurus docs site.
+
+              Requirements:
+              - Start with: "# What's new"
+              - Then list sections by month (most recent first), using "## Month YYYY" (e.g., "## August 2025").
+              - Under each month, add 3–8 bullet points summarising the most important changes for that month.
+              - Use plain text bullets (no emojis, no code diffs).
+              - Avoid generic statements; be specific to the listed items.
+              - Do not invent features; only summarise what is implied by the items.
+              - Keep it succinct.
+
+              Source items grouped by YYYY-MM (newest first):
+              ---
+              {grouped_input}
+              ---
               """)
-              from openai import OpenAI as _OpenAI  # reuse client
-              wn_md = call_model("Du schreibst praegnante Release-Highlights in Markdown auf Deutsch (Schweizer Rechtschreibung ohne Eszett).", wn_prompt)
+
+              wn_md = call_model(
+                  "You are a precise release highlight writer. Use clear English and monthly grouping.",
+                  wn_prompt
+              )
 
               WHATS_NEW.parent.mkdir(parents=True, exist_ok=True)
-              header = f"<!-- Auto-generated by assemble-changelog.yml on {datetime.datetime.now(datetime.timezone.utc).isoformat()} -->\n"
-              WHATS_NEW.write_text(header + "\n" + wn_md.strip() + "\n", encoding='utf-8')
-              log(f"'whats-new.md' aktualisiert (Einträge: {len(latest)})")
+              header = f"<!-- Auto-generated by assemble-changelog.yml on {datetime.datetime.now(datetime.timezone.utc).isoformat()} -->\\n"
+              WHATS_NEW.write_text(header + "\\n" + wn_md.strip() + "\\n", encoding='utf-8')
+              log(f"'whats-new.md' updated (months: {len(months_sorted)})")
 
           log(f"FERTIG. Neue Dateien: {len(created)} | Repariert: {repaired} | Übersprungen (vorhanden): {skipped_existing} | Übersprungen (.github): {skipped_workflow_only} | Gesamt-Commits: {len(commits)}")
           log("Changelog-Lauf abgeschlossen.")
