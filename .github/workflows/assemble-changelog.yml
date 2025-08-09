@@ -48,11 +48,17 @@ jobs:
           # ---------- Logging ----------
           DEBUG = os.environ.get('DEBUG', '').lower() in ('1', 'true', 'yes', 'on')
           def log(msg: str, level: str = "INFO"):
-              ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+              ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
               print(f"[{ts}] [{level}] {msg}", flush=True)
           def dlog(msg: str):
               if DEBUG:
                   log(msg, "DEBUG")
+
+          # Ensure shell helper 'sh' exists (fallback)
+          if 'sh' not in globals():
+              def sh(cmd: str) -> str:
+                  return subprocess.check_output(cmd, shell=True, text=True)
+              dlog("Fallback 'sh' helper definiert.")
 
           log("Starte Changelog-Lauf…")
 
