@@ -13,6 +13,8 @@ const config = {
   title: 'Fabric Adoption Framework',
   tagline: 'Adoption Framework for Microsoft Fabric',
   favicon: 'img/favicon.ico',
+  themes: ['@docusaurus/theme-mermaid'],
+  markdown: { mermaid: true },
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
