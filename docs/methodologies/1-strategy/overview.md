@@ -10,8 +10,6 @@ A Fabric adoption strategy is a comprehensive plan that outlines your organizati
 
 Like cloud adoption, successful Fabric adoption typically matures in iterations. This strategy methodology can be used as a living framework—revisited regularly to reassess goals, adjust plans, and ensure continuous improvement.
 
-![Develop a Fabric adoption strategy](../../../assets/diagrams/faf-strategy-overview.svg)
-
 Developing a Fabric adoption strategy helps you:
 
 - Realize value: Optimize your Microsoft Fabric investment for agility, productivity, and ROI.
