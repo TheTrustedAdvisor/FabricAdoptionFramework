@@ -23,19 +23,33 @@ function normalizeAuthors(raw) {
     })
     .filter(Boolean);
 
-  // Deduplicate by name|email
-  const seen = new Set();
-  const unique = [];
+  // Deduplicate by identity (github || email || name), prefer richer entries
+  const byId = new Map();
+  const score = (x) => {
+    let s = 0;
+    if (x.github) s += 4;       // has GitHub handle
+    if (x.email) s += 2;        // has email
+    if (x.realName) s += 1;     // has real name
+    if (Array.isArray(x.badges)) s += x.badges.length; // more badges → slightly higher
+    return s;
+  };
   for (const a of norm) {
-    const key = `${(a.name || '').trim()}|${(a.email || '').trim()}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push(a);
+    const id = ((a.github || a.email || a.name || '').toString().toLowerCase().trim());
+    if (!id) continue;
+    const existing = byId.get(id);
+    if (!existing || score(a) > score(existing)) {
+      byId.set(id, a);
     }
   }
+  const unique = Array.from(byId.values());
 
-  // Stable sort by name, then email
-  unique.sort((a, b) => (a.name || '').localeCompare(b.name || '') || (a.email || '').localeCompare(b.email || ''));
+  // Stable sort by handle (github || name || email), then by realName
+  unique.sort((a, b) => {
+    const ha = (a.github || a.name || a.email || '').toString().toLowerCase();
+    const hb = (b.github || b.name || b.email || '').toString().toLowerCase();
+    if (ha !== hb) return ha.localeCompare(hb);
+    return (a.realName || '').localeCompare(b.realName || '');
+  });
   return unique;
 }
 
