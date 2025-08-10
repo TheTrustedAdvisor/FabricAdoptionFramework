@@ -2,6 +2,9 @@
 publish: true
 title: Determine your motivations for adopting Microsoft Fabric
 sidebar_position: 3
+authors:
+  - name: TheTrustedAdvisor
+    email: matthias@falland.ch
 ---
 
 

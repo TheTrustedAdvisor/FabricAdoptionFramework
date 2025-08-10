@@ -2,6 +2,9 @@
 publish: true
 title: Define your mission and objectives for Fabric adoption
 sidebar_position: 4
+authors:
+  - name: TheTrustedAdvisor
+    email: matthias@falland.ch
 ---
 
 
