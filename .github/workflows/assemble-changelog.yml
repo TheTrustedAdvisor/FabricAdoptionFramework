@@ -357,7 +357,21 @@ jobs:
               processed += 1
               log(f"✅ Datei erstellt: {out_path.name}")
 
-          # Build what's-new deterministically from detailed change files (no model)
+          # Build what's-new as monthly PROSE using OpenAI (author voice), linking to /about/changes/...
+          TECH_KEYWORDS = re.compile(r'\b(chore|refactor|ci|build|workflow|vercel|action|deps?|dependency|package[- ]?lock|yarn.lock|pnpm-lock|bump|lint|format|prettier|tsconfig|webpack|eslintrc|jest|vitest|gh[- ]?actions)\b', re.I)
+
+          def looks_technical(e: dict, body_text: str = "") -> bool:
+              hay = " ".join([
+                  e.get('title',''),
+                  e.get('subject',''),
+                  e.get('path','') if isinstance(e.get('path'), str) else e.get('path').name
+              ])
+              if TECH_KEYWORDS.search(hay):
+                  return True
+              if 'No reader-visible documentation changes' in body_text:
+                  return True
+              return False
+
           def read_entry(p: Path) -> dict:
               txt = p.read_text(encoding='utf-8')
               msha = re.search(r'^sha:\s*("?)([0-9a-f]{40})\1$', txt, flags=re.M)
@@ -370,18 +384,86 @@ jobs:
                   'subject': (msub.group(1).strip() if msub else ''),
                   'date': (mdate.group(1).strip() if mdate else ''),
                   'title': teaser,
-                  'path': p
+                  'path': p,
+                  'raw': txt
               }
 
+          def month_label(ym: str) -> str:
+              if ym == "unknown":
+                  return "Unknown"
+              y, m = ym.split('-')
+              month_name = calendar.month_name[int(m)]  # English month names
+              return f"{month_name} {y}"
+
           def mdx_safe(s: str) -> str:
-              # keep bullets safe in MDX context
-              s = s.replace('<', '&lt;').replace('>', '&gt;')
-              return s
+              return s.replace('<','&lt;').replace('>','&gt;')
+
+          def summarize_month_with_ai(month_name: str, items: list[dict]) -> str:
+              """
+              Use OpenAI to write 2–3 warm, author-voice paragraphs summarizing NON-technical changes.
+              Each highlighted change should end its sentence with (Read more ›) linking to the exact detail page.
+              """
+              # Prepare a compact catalog for the model with exact URLs it must reuse verbatim.
+              # Link path FIX: /about/changes/{filename}
+              catalog_lines = []
+              for e in items:
+                  filename = e['path'].name
+                  url = f"/about/changes/{filename}"
+                  title = e['title'] or e['subject'] or filename
+                  catalog_lines.append(f"- {mdx_safe(title)} — {url}")
+
+              catalog = "\n".join(catalog_lines)
+              user = textwrap.dedent(f"""
+              You are writing the monthly "What's new" section for the Fabric Adoption Framework website.
+
+              WRITE IN ENGLISH, in the first person singular, as the author speaking directly to readers.
+              Tone: personal, warm, enthusiastic — like giving readers a friendly hug.
+              Include ONLY non-technical documentation changes (content, structure, navigation, naming, governance, reader-facing UX). 
+              Ignore anything purely technical (code refactors, CI/CD, build, dependencies, lockfiles).
+
+              For the month **{month_name}**, write 2–3 short paragraphs explaining:
+              - what changed (focus on readers' perspective),
+              - why it matters,
+              - what impact we expect.
+              Where relevant, thank contributors or the community.
+
+              IMPORTANT LINKING RULE:
+              You MUST incorporate some of the items below in the prose.
+              When you mention a specific change, end that sentence with a Markdown link exactly as:
+              (Read more ›)
+              and use the exact URL provided next to the item.
+
+              Available items (Title — URL):
+              {catalog}
+
+              Constraints:
+              - No bullet lists. Write flowing paragraphs only.
+              - Keep it concise and authentic. No marketing buzzwords. No emojis.
+              - If there are no reader-visible changes in this month, write one sentence: 
+                "This month, there were no reader-visible documentation changes."
+              """).strip()
+
+              try:
+                  text = call_model(
+                      "You write monthly 'What's new' summaries in warm, authentic author voice for a documentation website. You strictly exclude technical-only changes.",
+                      user
+                  )
+              except Exception as ex:
+                  dlog(f"OpenAI month summary failed: {ex}")
+                  # Fallback simple prose
+                  if not items:
+                      return f"For {month_name}, there were no reader-visible documentation changes."
+                  joined = "; ".join(mdx_safe(e['title'] or e['subject'] or e['path'].stem) for e in items[:4])
+                  return f"In {month_name}, I focused on refining our documentation: {joined}. (Read more ›)"
+
+              # MDX-sanitize minimally
+              text, _ = sanitize_for_mdx(text)
+              return text.strip()
 
           log("Erzeuge 'whats-new.md'…")
           all_change_files = sorted(CHANGES_DIR.glob('*.md'))
           if all_change_files:
-              # sort by commit order from git log (newest first)
+              # sort by git log order (newest first)
               order_map = {c['sha']: i for i, c in enumerate(commits)}
               def sort_key(p: Path):
                   m = re.fullmatch(r'(?:\d{4}-\d{2}-\d{2}-)?([0-9a-f]{40})', p.stem)
@@ -391,83 +473,60 @@ jobs:
 
               entries = [read_entry(p) for p in ordered]
 
-              # group by YYYY-MM
+              # group by YYYY-MM, filter out technical
               by_month: dict[str, list[dict]] = {}
               for e in entries:
-                  # prefer date from front matter, else from filename prefix
+                  # Derive YYYY-MM from front matter date or filename
                   m = re.search(r'^(\d{4})-(\d{2})-(\d{2})', e['date'])
                   if not m:
                       m = re.search(r'^(\d{4})-(\d{2})-(\d{2})', e['path'].name)
-                  if m:
-                      ym = f"{m.group(1)}-{m.group(2)}"
-                  else:
-                      ym = "unknown"
+                  ym = f"{m.group(1)}-{m.group(2)}" if m else "unknown"
+                  if looks_technical(e, e['raw']):
+                      dlog(f"Filter technical from What's new: {e['path'].name}")
+                      continue
                   by_month.setdefault(ym, []).append(e)
 
-              def month_label(ym: str) -> str:
-                  if ym == "unknown":
-                      return "Unknown"
-                  y, m = ym.split('-')
-                  month_name = calendar.month_name[int(m)]  # English month names
-                  return f"{month_name} {y}"
+              # Prepare front matter and badge
+              latest_entry = next((e for e in entries if e.get('date')), None)
+              latest_date = latest_entry['date'].split()[0] if latest_entry else ''
+              badge = f"![Last updated](https://img.shields.io/badge/last%20updated-{latest_date.replace('-', '--')}-brightgreen)" if latest_date else ''
 
-              # Compose Markdown
-              # Find latest commit date for badge
-              latest_entry = max(entries, key=lambda e: e['date'] if e['date'] else '', default=None)
-              latest_date = ''
-              if latest_entry and latest_entry['date']:
-                  latest_date = latest_entry['date'].split()[0]
-              badge = ''
-              if latest_date:
-                  badge = f"![Last updated](https://img.shields.io/badge/last%20updated-{latest_date.replace('-', '--')}-brightgreen)"
-
-              # Proper frontmatter as required
               fm = [
                   "---",
                   "id: whats-new",
                   "title: What's new",
                   "sidebar_label: What's new",
+                  "description: Monthly highlights of documentation changes in the Fabric Adoption Framework.",
                   "---",
                   "",
               ]
 
               parts = []
-              # Badge at the top
+              parts.extend(fm)
               if badge:
                   parts.append(badge)
                   parts.append("")
-              # Docusaurus frontmatter
-              parts = fm + parts
-              # Main title
+
               parts.append("# What's new")
               parts.append("")
+
               # newest month first
               for ym in sorted(by_month.keys(), reverse=True):
-                  month_items = by_month[ym]
-                  # cap to top 8–10 most recent for readability
-                  items = month_items[:10]
-                  parts.append(f"## {month_label(ym)}")
-                  # One-line summary for the month
-                  # Compose a summary from the first 2 entries' subjects (or at least one)
-                  summary_titles = [mdx_safe((e['title'] or e['subject'] or '').strip()) for e in items[:2]]
-                  summary = " • ".join(summary_titles)
-                  if not summary:
-                      summary = "No reader-visible documentation changes."
-                  parts.append(f"{summary}")
+                  month_items = by_month[ym][:12]
+                  if not month_items:
+                      continue
+                  label = month_label(ym)
+                  parts.append(f"## {label}")
                   parts.append("")
-                  for e in items:
-                      title = e['title'] or e['subject'] or e['path'].stem
-                      title = mdx_safe(title.strip())
-                      filename = e['path'].name
-                      short_sha = e['sha'][:7]
-                      # two links: details and commit
-                      parts.append(f"- {title} [details](/docs/about/changes/{filename}) [commit](https://github.com/TheTrustedAdvisor/FabricAdoptionFramework/commit/{e['sha']})")
+                  # Generate warm prose for this month
+                  prose = summarize_month_with_ai(label, month_items)
+                  parts.append(prose)
                   parts.append("")
 
               WHATS_NEW.parent.mkdir(parents=True, exist_ok=True)
               content = "\n".join(parts).strip() + "\n"
               WHATS_NEW.write_text(content, encoding='utf-8')
-              log(f"'whats-new.md' updated (months: {len(by_month)})")
+              log(f"'whats-new.md' updated with monthly prose (months: {len(by_month)})")
 
           log(f"FERTIG. Neue Dateien: {len(created)} | Repariert: {repaired} | Übersprungen (vorhanden): {skipped_existing} | Übersprungen (.github): {skipped_workflow_only} | Gesamt-Commits: {len(commits)}")
           dlog(f"REGENERATE_ALL_CHANGELOGS={os.environ.get('REGENERATE_ALL_CHANGELOGS')!r}")
