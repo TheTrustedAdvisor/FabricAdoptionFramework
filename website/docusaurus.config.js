@@ -186,7 +186,18 @@ const config = {
         '--ifm-menu-color-active': '#2a4b8d',
         '--ifm-menu-color-background-active': '#e6e9f2',
       },
-    }),
+      metadata: [
+        { name: 'description', content: 'Fabric Adoption Framework – Your guide to adopting Microsoft Fabric successfully.' },
+        { property: 'og:title', content: 'Fabric Adoption Framework' },
+        { property: 'og:description', content: 'Your guide to adopting Microsoft Fabric successfully.' },
+        { property: 'og:image', content: 'https://www.fabric-adoption-framework.com/img/docusaurus-social-card.jpg' },
+        { property: 'og:url', content: 'https://www.fabric-adoption-framework.com' },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:title', content: 'Fabric Adoption Framework' },
+        { name: 'twitter:description', content: 'Your guide to adopting Microsoft Fabric successfully.' },
+        { name: 'twitter:image', content: 'https://www.fabric-adoption-framework.com/img/docusaurus-social-card.jpg' }
+      ],
+}),
 };
 
 export default config;
