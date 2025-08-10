@@ -9,12 +9,6 @@ authors:
     realName: Matthias Falland
     badges:
       - mvp
-  - name: TheTrustedAdvisor
-    email: matthias@falland.ch
-    github: TheTrustedAdvisor
-    realName: Matthias Falland
-    badges:
-      - mvp
 ---
 
 # Prepare your organization for Microsoft Fabric adoption
