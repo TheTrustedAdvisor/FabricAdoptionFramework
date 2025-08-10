@@ -4,7 +4,17 @@ title: Define your Microsoft Fabric strategy team
 sidebar_position: 5
 authors:
   - name: TheTrustedAdvisor
+    email: 12225606+thetrustedadvisor@users.noreply.github.com
+    github: TheTrustedAdvisor
+    realName: Matthias Falland
+    badges:
+      - mvp
+  - name: TheTrustedAdvisor
     email: matthias@falland.ch
+    github: TheTrustedAdvisor
+    realName: Matthias Falland
+    badges:
+      - mvp
 ---
 
 # Define your Microsoft Fabric strategy team

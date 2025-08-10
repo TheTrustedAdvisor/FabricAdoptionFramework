@@ -4,7 +4,17 @@ title: Prepare your organization for Microsoft Fabric adoption
 sidebar_position: 6
 authors:
   - name: TheTrustedAdvisor
+    email: 12225606+thetrustedadvisor@users.noreply.github.com
+    github: TheTrustedAdvisor
+    realName: Matthias Falland
+    badges:
+      - mvp
+  - name: TheTrustedAdvisor
     email: matthias@falland.ch
+    github: TheTrustedAdvisor
+    realName: Matthias Falland
+    badges:
+      - mvp
 ---
 
 # Prepare your organization for Microsoft Fabric adoption
