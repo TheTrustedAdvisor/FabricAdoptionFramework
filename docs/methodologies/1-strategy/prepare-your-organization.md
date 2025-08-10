@@ -2,6 +2,9 @@
 publish: true
 title: Prepare your organization for Microsoft Fabric adoption
 sidebar_position: 6
+authors:
+  - name: TheTrustedAdvisor
+    email: matthias@falland.ch
 ---
 
 # Prepare your organization for Microsoft Fabric adoption
