@@ -398,22 +398,70 @@ jobs:
           def mdx_safe(s: str) -> str:
               return s.replace('<','&lt;').replace('>','&gt;')
 
-          def summarize_month_with_ai(month_name: str, items: list[dict]) -> str:
+          def summarize_month_with_ai(month_name: str, items: list[dict], ym: str, all_commits: list[dict]) -> str:
               """
-              Use OpenAI to write 2–3 warm, author-voice paragraphs summarizing NON-technical changes.
-              Each highlighted change should end its sentence with (Read more ›) linking to the exact detail page.
+              Use OpenAI to write 2–3 warm, author-voice paragraphs summarizing NON-technical changes,
+              or a fallback emotional text if there are no such changes. Always append a commit count as a Markdown link.
               """
               # Prepare a compact catalog for the model with exact URLs it must reuse verbatim.
-              # Link path FIX: /about/changes/{filename}
               catalog_lines = []
               for e in items:
                   filename = e['path'].name
                   url = f"/about/changes/{filename}"
                   title = e['title'] or e['subject'] or filename
                   catalog_lines.append(f"- {mdx_safe(title)} — {url}")
-
               catalog = "\n".join(catalog_lines)
-              user = textwrap.dedent(f"""
+
+              # Dynamically determine commit count and period for this month
+              # ym is "YYYY-MM"
+              try:
+                  y, m = map(int, ym.split('-'))
+                  first_day = datetime.date(y, m, 1)
+                  last_day = datetime.date(y, m, calendar.monthrange(y, m)[1])
+                  since = first_day.isoformat()
+                  until = last_day.isoformat()
+              except Exception:
+                  since = until = ""
+              # Count all commits in this month
+              month_commit_count = 0
+              for c in all_commits:
+                  try:
+                      cdate = c["date"].split(" ")[0]
+                      if since <= cdate <= until:
+                          month_commit_count += 1
+                  except Exception:
+                      continue
+              # Markdown link for commit count
+              if since and until:
+                  commit_link = f"https://github.com/TheTrustedAdvisor/FabricAdoptionFramework/commits/main?since={since}&until={until}"
+                  commit_count_md = f"[{month_commit_count} commit{'s' if month_commit_count != 1 else ''}]({commit_link})"
+              else:
+                  commit_count_md = f"{month_commit_count} commits"
+
+              if not items:
+                  # If no non-technical changes: warm fallback paragraph with commit count
+                  fallback_prompt = textwrap.dedent(f"""
+                  You are writing the monthly "What's new" section for the Fabric Adoption Framework website.
+
+                  WRITE IN ENGLISH, in the first person singular, as the author speaking directly to readers.
+                  Tone: warm, emotional, and honest.
+                  For the month **{month_name}**, there were no non-technical, reader-visible documentation changes.
+                  Write a short, heartfelt paragraph emphasizing that behind the scenes, important groundwork or maintenance continued, and gently encourage readers to stay tuned.
+                  At the END of the paragraph, add the following Markdown link (do NOT skip): {commit_count_md}
+                  """).strip()
+                  try:
+                      text = call_model(
+                          "You write warm, honest monthly 'What's new' fallback notes for documentation websites.",
+                          fallback_prompt
+                      )
+                  except Exception as ex:
+                      dlog(f"OpenAI month fallback failed: {ex}")
+                      return f"Behind the scenes, we were busy laying foundations this month, even if nothing changed visibly in the documentation. {commit_count_md}"
+                  text, _ = sanitize_for_mdx(text)
+                  return text.strip()
+
+              # If there are non-technical changes, prompt for 2–3 warm paragraphs and append commit count link at the end
+              prose_prompt = textwrap.dedent(f"""
               You are writing the monthly "What's new" section for the Fabric Adoption Framework website.
 
               WRITE IN ENGLISH, in the first person singular, as the author speaking directly to readers.
@@ -439,23 +487,18 @@ jobs:
               Constraints:
               - No bullet lists. Write flowing paragraphs only.
               - Keep it concise and authentic. No marketing buzzwords. No emojis.
-              - If there are no reader-visible changes in this month, write one sentence: 
-                "This month, there were no reader-visible documentation changes."
+              - At the END of your final paragraph, add the following Markdown link in parentheses: {commit_count_md}
               """).strip()
-
               try:
                   text = call_model(
                       "You write monthly 'What's new' summaries in warm, authentic author voice for a documentation website. You strictly exclude technical-only changes.",
-                      user
+                      prose_prompt
                   )
               except Exception as ex:
                   dlog(f"OpenAI month summary failed: {ex}")
                   # Fallback simple prose
-                  if not items:
-                      return f"For {month_name}, there were no reader-visible documentation changes."
                   joined = "; ".join(mdx_safe(e['title'] or e['subject'] or e['path'].stem) for e in items[:4])
-                  return f"In {month_name}, I focused on refining our documentation: {joined}. (Read more ›)"
-
+                  return f"In {month_name}, I focused on refining our documentation: {joined}. (Read more ›) {commit_count_md}"
               # MDX-sanitize minimally
               text, _ = sanitize_for_mdx(text)
               return text.strip()
@@ -512,14 +555,12 @@ jobs:
 
               # newest month first
               for ym in sorted(by_month.keys(), reverse=True):
+                  # month_items is already filtered for non-technical
                   month_items = by_month[ym][:12]
-                  if not month_items:
-                      continue
                   label = month_label(ym)
                   parts.append(f"## {label}")
                   parts.append("")
-                  # Generate warm prose for this month
-                  prose = summarize_month_with_ai(label, month_items)
+                  prose = summarize_month_with_ai(label, month_items, ym, commits)
                   parts.append(prose)
                   parts.append("")
 
