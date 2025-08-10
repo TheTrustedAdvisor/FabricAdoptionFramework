@@ -53,6 +53,7 @@ const config = {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl: 'https://github.com/TheTrustedAdvisor/FabricAdoptionFramework/edit/main/docs/',
+          showLastUpdateTime: true,
         },
         blog: false,
         theme: {
