@@ -7,6 +7,9 @@ description: >-
   adopting Microsoft Fabric.
 sidebar_position: 3
 authors:
+  - name: 'github-actions[bot]'
+    email: '41898282+github-actions[bot]@users.noreply.github.com'
+    github: '41898282'
   - name: TheTrustedAdvisor
     email: 12225606+thetrustedadvisor@users.noreply.github.com
     github: TheTrustedAdvisor
