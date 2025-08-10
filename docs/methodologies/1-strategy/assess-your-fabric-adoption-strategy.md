@@ -2,6 +2,9 @@
 publish: true
 title: Assess your Fabric adoption strategy
 sidebar_position: 2
+authors:
+  - name: TheTrustedAdvisor
+    email: matthias@falland.ch
 ---
 
 # Assess your Fabric adoption strategy
