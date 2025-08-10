@@ -19,12 +19,6 @@ authors:
     realName: Matthias Falland
     badges:
       - mvp
-  - name: TheTrustedAdvisor
-    email: matthias@falland.ch
-    github: TheTrustedAdvisor
-    realName: Matthias Falland
-    badges:
-      - mvp
 ---
 
 # What is the Fabric Adoption Framework?
