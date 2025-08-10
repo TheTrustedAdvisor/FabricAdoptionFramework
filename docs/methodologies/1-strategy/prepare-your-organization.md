@@ -18,6 +18,14 @@ A Fabric strategy based on your organization’s motivations and objectives requ
 - **Secure resources:** Ensure leaders are willing to fund time, tools, and talent needed for Fabric implementation.
 - **Communicate commitment:** Make leadership support visible to reduce resistance and accelerate change management across the organization.
 
+```mermaid
+flowchart TD
+    A[Executive Buy-in] --> B[Resource Allocation]
+    A --> C[Visible Commitment]
+    B --> D[Change Acceleration]
+    C --> D
+```
+
 ## Align organizational strategies
 
 Microsoft Fabric often intersects with multiple organizational strategies:
@@ -31,6 +39,14 @@ Microsoft Fabric often intersects with multiple organizational strategies:
 - Regularly review alignment between your Fabric strategy and business/digital/IT strategies.
 - Use agile feedback loops to adjust to shifting priorities.
 - Involve business leaders early in planning to secure shared goals and ownership.
+
+```mermaid
+flowchart LR
+    Business[Business Strategy] --> Fabric[Fabric Strategy]
+    Digital[Digital Strategy] --> Fabric
+    IT[IT Strategy] --> Fabric
+    Fabric[Fabric Strategy]
+```
 
 ## Understand your operating model's readiness
 
@@ -47,6 +63,8 @@ Fabric adoption requires the right people, processes, technologies, and partners
 - Run an operating model workshop to benchmark your current state.
 - Identify gaps that must be addressed to enable Fabric successfully.
 - Inform and involve stakeholders in readiness assessments and mitigation planning.
+- Conduct readiness surveys across departments to assess preparedness.
+- Create a maturity heatmap to visualize strengths and weaknesses across organizational units.
 
 ## Shift from project to product mindset
 
@@ -65,6 +83,8 @@ Fabric supports a product-oriented model where data products are continuously im
 - Accelerates innovation and adoption of self-service models.
 - Drives continuous delivery of business value.
 - Enables governance by design via reusable policies and templates.
+- Increases stakeholder engagement by involving business and IT throughout the lifecycle.
+- Improves measurement of business value delivery through ongoing feedback and metrics.
 
 **Recommendations:**
 
@@ -81,6 +101,8 @@ Fabric adoption often requires external expertise and collaboration.
 - **Identify strategic partners:** Include Microsoft, ISVs, and integrators that support data, identity, and application platforms.
 - **Promote integrated partnerships:** Treat vendors as strategic allies, not just suppliers.
 - **Meet regularly:** Include partners in governance, KPI reviews, and planning sessions.
+- Create joint roadmaps with partners to ensure alignment of goals and timelines.
+- Set up shared innovation initiatives to co-develop solutions and accelerate value realization.
 
 ---
 
