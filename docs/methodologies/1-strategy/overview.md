@@ -2,6 +2,9 @@
 publish: true
 title: What is a Fabric adoption strategy?
 sidebar_position: 1
+authors:
+  - name: TheTrustedAdvisor
+    email: matthias@falland.ch
 ---
 
 ## What is a Fabric adoption strategy?
