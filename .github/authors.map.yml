@@ -1,0 +1,11 @@
+byEmail:
+  matthias@falland.ch:
+    github: TheTrustedAdvisor
+    realName: Matthias Falland
+    badges: [mvp]
+
+byName:
+  TheTrustedAdvisor:
+    github: TheTrustedAdvisor
+    realName: Matthias Falland
+    badges: [mvp]
