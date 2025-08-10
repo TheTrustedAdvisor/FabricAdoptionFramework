@@ -2,6 +2,9 @@
 publish: true
 title: Define your Microsoft Fabric strategy team
 sidebar_position: 5
+authors:
+  - name: TheTrustedAdvisor
+    email: matthias@falland.ch
 ---
 
 # Define your Microsoft Fabric strategy team

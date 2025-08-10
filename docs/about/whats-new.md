@@ -2,6 +2,9 @@
 publish: true
 title: What's new in the Fabric Adoption Framework
 sidebar_position: 2
+authors:
+  - name: TheTrustedAdvisor
+    email: matthias@falland.ch
 ---
 
 # What's new in the Fabric Adoption Framework
