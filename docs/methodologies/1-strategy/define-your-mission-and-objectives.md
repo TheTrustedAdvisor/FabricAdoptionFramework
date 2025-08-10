@@ -4,7 +4,17 @@ title: Define your mission and objectives for Fabric adoption
 sidebar_position: 4
 authors:
   - name: TheTrustedAdvisor
+    email: 12225606+thetrustedadvisor@users.noreply.github.com
+    github: TheTrustedAdvisor
+    realName: Matthias Falland
+    badges:
+      - mvp
+  - name: TheTrustedAdvisor
     email: matthias@falland.ch
+    github: TheTrustedAdvisor
+    realName: Matthias Falland
+    badges:
+      - mvp
 ---
 
 
