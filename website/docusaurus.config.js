@@ -141,6 +141,13 @@ const config = {
         theme: prismThemes.github,
         darkTheme: prismThemes.dracula,
       },
+      algolia: {
+        appId: 'HUIIY5VUSV',
+        apiKey: '082ac197fde5438c53737b7a66f3c601',
+        indexName: 'Fabric Adoption Framework Prod',
+        contextualSearch: true,
+        searchPagePath: 'search',
+      },
     }),
 };
 
