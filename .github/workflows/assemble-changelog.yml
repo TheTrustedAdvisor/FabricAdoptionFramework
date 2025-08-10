@@ -303,19 +303,29 @@ jobs:
               sha = c['sha']
               subject = c['subject']
               log(f"[{idx}/{len(commits)}] Prüfe Commit {sha[:7]} – {subject}")
-              if (not REGENERATE_ALL) and (sha in existing):
+              # Determine target filename(s) for this commit
+              date_prefix = c['date'].split(' ')[0]
+              filename = f"{date_prefix}-{sha}.md"
+              out_path = CHANGES_DIR / filename
+
+              # Backward-compatibility: also consider older/no-date filenames or any file that ends with the sha
+              legacy_match = list(CHANGES_DIR.glob(f"*{sha}.md"))
+
+              # Skip logic: if REGENERATE_ALL is false AND file already exists, skip early to save OpenAI calls
+              if not REGENERATE_ALL and (out_path.exists() or len(legacy_match) > 0 or (sha in existing)):
                   skipped_existing += 1
-                  dlog(f"Übersprungen (bereits vorhanden): {sha[:7]}")
+                  dlog(f"Übersprungen (bereits vorhanden): {sha[:7]} -> {out_path.name if out_path.exists() else legacy_match[0].name if legacy_match else 'found via front-matter'}")
                   continue
+
               files = get_commit_files(sha)
               if files and all(f.startswith('.github/') for f in files):
                   skipped_workflow_only += 1
                   dlog(f"Übersprungen (nur Workflow-Dateien): {sha[:7]}")
                   continue
+
               diff = get_diff(sha)
               dlog(f"Diff-Länge: {len(diff)} Zeichen")
               # Build dynamic English title: "Changes – YYYY-MM-DD: <short title> (<shortsha>)"
-              date_prefix = c['date'].split(' ')[0]
               short_title = make_short_title(subject, files, diff)
               title_line = f"Changes – {date_prefix}: {short_title} ({sha[:7]})"
               user_prompt = textwrap.dedent(f"""
@@ -346,8 +356,6 @@ jobs:
               body_md = call_model(SYSTEM, user_prompt)
               body_md, s_new = sanitize_for_mdx(body_md)
               dlog(f"MDX sanitize for new file: {s_new} replacements")
-              filename = f"{date_prefix}-{sha}.md"
-              out_path = CHANGES_DIR / filename
               merge_flag = is_merge_commit(sha)
               out_path.write_text(
                   build_commit_markdown(sha, c['author'], c['date'], subject, body_md, merge_flag, title_line),
