@@ -148,6 +148,44 @@ const config = {
         contextualSearch: true,
         searchPagePath: 'search',
       },
+            scripts: [
+        {
+          src: 'https://fonts.googleapis.com',
+          rel: 'preconnect',
+        },
+        {
+          src: 'https://fonts.gstatic.com',
+          rel: 'preconnect',
+          crossOrigin: 'anonymous',
+        },
+      ],
+      stylesheets: [
+        {
+          href: 'https://fonts.googleapis.com/css2?family=Anton&display=swap',
+          type: 'text/css',
+        },
+        {
+          href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap',
+          type: 'text/css',
+        },
+      ],
+      colorMode: {
+        defaultMode: 'light',
+        disableSwitch: false,
+        respectPrefersColorScheme: true,
+      },
+      customCssVariables: {
+        '--ifm-color-primary': '#2a4b8d',
+        '--ifm-color-primary-dark': '#223e73',
+        '--ifm-color-primary-darker': '#1c3562',
+        '--ifm-color-primary-darkest': '#142949',
+        '--ifm-color-primary-light': '#345fae',
+        '--ifm-color-primary-lighter': '#3c6cc2',
+        '--ifm-color-primary-lightest': '#4d80d8',
+        '--ifm-menu-color': '#2a4b8d',
+        '--ifm-menu-color-active': '#2a4b8d',
+        '--ifm-menu-color-background-active': '#e6e9f2',
+      },
     }),
 };
 
