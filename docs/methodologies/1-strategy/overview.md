@@ -24,6 +24,24 @@ Developing a Fabric adoption strategy helps you:
 
 The Microsoft Cloud Adoption Framework outlines five key steps that also apply to a Microsoft Fabric adoption strategy:
 
+```mermaid
+graph LR
+    A[Assess your Fabric adoption strategy] --> B[Define your motivations]
+    B --> C[Define your mission and objectives]
+    C --> D[Define your strategy team]
+    D --> E[Prepare your organization]
+    E --> F[Inform your strategy]
+```
+
+| Step                                  | Purpose                                                                                       |
+|---------------------------------------|-----------------------------------------------------------------------------------------------|
+| Assess your Fabric adoption strategy  | Understand current capabilities, maturity, and gaps across people, processes, and platforms.  |
+| Define your motivations               | Clarify why your organization is adopting Microsoft Fabric.                                   |
+| Define your mission and objectives    | Set a clear strategic intent and measurable goals that reflect your motivations.              |
+| Define your strategy team             | Identify roles and responsibilities for executing and governing the Fabric adoption strategy. |
+| Prepare your organization             | Align leadership, prepare the operating model, and enable organizational readiness.           |
+| Inform your strategy                  | Use insights from previous steps to shape and refine your Fabric adoption approach.           |
+
 1. [Assess your adoption readiness](assess-your-fabric-adoption-strategy.md)  
    Understand current capabilities, maturity, and gaps across people, processes, and platforms.
 
