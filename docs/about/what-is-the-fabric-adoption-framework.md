@@ -3,13 +3,18 @@ publish: true
 id: home
 slug: /
 title: What is the Fabric Adoption Framework?
-description: "An introduction to the Fabric Adoption Framework with best practices for adopting Microsoft Fabric."
+description: >-
+  An introduction to the Fabric Adoption Framework with best practices for
+  adopting Microsoft Fabric.
 tags:
   - Microsoft Fabric
   - Adoption
   - Governance
   - Cloud Strategy
 sidebar_position: 1
+authors:
+  - name: TheTrustedAdvisor
+    email: matthias@falland.ch
 ---
 
 # What is the Fabric Adoption Framework?
