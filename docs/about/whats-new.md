@@ -4,7 +4,17 @@ title: What's new in the Fabric Adoption Framework
 sidebar_position: 2
 authors:
   - name: TheTrustedAdvisor
+    email: 12225606+thetrustedadvisor@users.noreply.github.com
+    github: TheTrustedAdvisor
+    realName: Matthias Falland
+    badges:
+      - mvp
+  - name: TheTrustedAdvisor
     email: matthias@falland.ch
+    github: TheTrustedAdvisor
+    realName: Matthias Falland
+    badges:
+      - mvp
 ---
 
 # What's new in the Fabric Adoption Framework
