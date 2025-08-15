@@ -188,14 +188,14 @@ const config = {
         '--ifm-menu-color-background-active': '#e6e9f2',
       },
       metadata: [
-        { name: 'description', content: 'Fabric Adoption Framework – Your guide to adopting Microsoft Fabric successfully.' },
+        { name: 'description', content: 'Fabric Adoption Framework – Your guide to adopting Microsoft Fabric successfully. Brought to you by The Trusted Advisor Matthias Falland.' },
         { property: 'og:title', content: 'Fabric Adoption Framework' },
-        { property: 'og:description', content: 'Your guide to adopting Microsoft Fabric successfully.' },
+        { property: 'og:description', content: 'Your guide to adopting Microsoft Fabric successfully. Brought to you by The Trusted Advisor Matthias Falland.' },
         { property: 'og:image', content: 'https://www.fabric-adoption-framework.com/img/Fabric-Adoption-Framework-Social-Card.png?v=2' },
         { property: 'og:url', content: 'https://www.fabric-adoption-framework.com' },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:title', content: 'Fabric Adoption Framework' },
-        { name: 'twitter:description', content: 'Your guide to adopting Microsoft Fabric successfully.' },
+        { name: 'twitter:description', content: 'Your guide to adopting Microsoft Fabric successfully. Brought to you by The Trusted Advisor Matthias Falland.' },
         { name: 'twitter:image', content: 'https://www.fabric-adoption-framework.com/img/Fabric-Adoption-Framework-Social-Card.png?v=2' }
       ],
     }),
