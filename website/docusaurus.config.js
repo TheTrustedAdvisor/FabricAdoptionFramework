@@ -12,7 +12,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 const config = {
   title: 'Fabric Adoption Framework',
   tagline: 'Adoption Framework for Microsoft Fabric',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.ico?v=2',
   themes: ['@docusaurus/theme-mermaid'],
   markdown: { mermaid: true },
 
@@ -77,7 +77,7 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       // Replace with your project's social card
-      image: 'img/Fabric-Adoption-Framework-Social-Card.png',
+      image: 'img/Fabric-Adoption-Framework-Social-Card.png?v=2',
       navbar: {
         title: 'Fabric Adoption Framework',
         logo: {
@@ -191,12 +191,12 @@ const config = {
         { name: 'description', content: 'Fabric Adoption Framework – Your guide to adopting Microsoft Fabric successfully.' },
         { property: 'og:title', content: 'Fabric Adoption Framework' },
         { property: 'og:description', content: 'Your guide to adopting Microsoft Fabric successfully.' },
-        { property: 'og:image', content: 'https://www.fabric-adoption-framework.com/img/docusaurus-social-card.jpg' },
+        { property: 'og:image', content: 'https://www.fabric-adoption-framework.com/img/Fabric-Adoption-Framework-Social-Card.png?v=2' },
         { property: 'og:url', content: 'https://www.fabric-adoption-framework.com' },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:title', content: 'Fabric Adoption Framework' },
         { name: 'twitter:description', content: 'Your guide to adopting Microsoft Fabric successfully.' },
-        { name: 'twitter:image', content: 'https://www.fabric-adoption-framework.com/img/docusaurus-social-card.jpg' }
+        { name: 'twitter:image', content: 'https://www.fabric-adoption-framework.com/img/Fabric-Adoption-Framework-Social-Card.png?v=2' }
       ],
     }),
 };
