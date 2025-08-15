@@ -91,7 +91,7 @@ const config = {
             position: 'left',
           },
           {
-            href: 'https://github.com/facebook/docusaurus',
+            href: 'https://github.com/TheTrustedAdvisor/FabricAdoptionFramework',
             label: 'GitHub',
             position: 'right',
           },
