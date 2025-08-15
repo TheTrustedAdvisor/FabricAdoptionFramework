@@ -4,7 +4,7 @@
 // There are various equivalent ways to declare your Docusaurus config.
 // See: https://docusaurus.io/docs/api/docusaurus-config
 
-import {themes as prismThemes} from 'prism-react-renderer';
+import { themes as prismThemes } from 'prism-react-renderer';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -77,7 +77,7 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       // Replace with your project's social card
-      image: 'img/docusaurus-social-card.jpg',
+      image: 'img/Fabric-Adoption-Framework-Social-Card.png',
       navbar: {
         title: 'Fabric Adoption Framework',
         logo: {
@@ -149,7 +149,7 @@ const config = {
         contextualSearch: true,
         searchPagePath: 'search',
       },
-            scripts: [
+      scripts: [
         {
           src: 'https://fonts.googleapis.com',
           rel: 'preconnect',
@@ -198,7 +198,7 @@ const config = {
         { name: 'twitter:description', content: 'Your guide to adopting Microsoft Fabric successfully.' },
         { name: 'twitter:image', content: 'https://www.fabric-adoption-framework.com/img/docusaurus-social-card.jpg' }
       ],
-}),
+    }),
 };
 
 export default config;
